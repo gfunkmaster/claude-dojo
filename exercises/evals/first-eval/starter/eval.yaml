@@ -1,0 +1,5 @@
+cases:
+  - name: tack
+    text: "Tack för hjälpen!"
+    checks:
+      - { kind: regex, pattern: "positive", flags: "i" }

@@ -1,0 +1,8 @@
+{
+  "model": "claude-haiku-5-5",
+  "max_tokens": 1024,
+  "system": [
+    { "type": "text", "text": "Question: {{input}}" },
+    { "type": "text", "text": "{{file:docs/handbook.md}}", "cache_control": { "type": "ephemeral" } }
+  ]
+}

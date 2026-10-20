@@ -1,0 +1,6 @@
+feat: export reports as CSV (#412)
+fix: login loop on Safari (#415)
+chore: bump eslint to 10.2 (#416)
+feat: dark mode in settings (#418)
+ci: cache npm in GitHub Actions (#419)
+fix: wrong totals when a discount is 100% (#421)

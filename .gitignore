@@ -2,3 +2,5 @@ node_modules/
 workspace/
 results/
 .env
+# Exercise fixtures ship fake secrets on purpose.
+!exercises/**/fixture/.env

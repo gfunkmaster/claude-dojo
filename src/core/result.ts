@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { SKILLS } from "./exercise.ts";
+import { EXERCISE_TYPES, SKILLS } from "./exercise.ts";
 
 const Grade = z.enum(["pass", "partial", "fail"]);
 
@@ -7,7 +7,7 @@ export const RunResultSchema = z.object({
   schemaVersion: z.literal(1),
   exerciseId: z.string(),
   skill: z.enum(SKILLS),
-  type: z.enum(["prompt", "env", "eval"]),
+  type: z.enum(EXERCISE_TYPES),
   startedAt: z.iso.datetime(),
   durationMs: z.number().int().nonnegative(),
   /** 0..100 */

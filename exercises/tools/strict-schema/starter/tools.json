@@ -1,0 +1,9 @@
+{
+  "tools": [
+    {
+      "name": "book_meeting",
+      "description": "Book a meeting.",
+      "input_schema": { "type": "object", "properties": { "details": { "type": "string" } } }
+    }
+  ]
+}

@@ -20,7 +20,8 @@ Without `npm link`, use `npm run dojo -- <command>`.
 ## Usage
 
 ```sh
-dojo list                      # exercises, best score, calibration status
+dojo next                      # the next exercise on the path that you have not passed
+dojo list                      # the whole path, best score, calibration status
 dojo run prompt-extract-invoice
 #   first time: copies the starter to workspace/<id>/ and prints the task
 #   after that: grades what is in workspace/<id>/
@@ -32,9 +33,28 @@ dojo stats <id>                # history for one exercise
 
 `DOJO_HOME` moves `workspace/` and `results/` somewhere else. `DOJO_JUDGE_MODEL` changes the judge model (default `claude-opus-5-5`).
 
+## The path
+
+21 exercises: every skill at three levels. `dojo next` takes you through them in this order, and an exercise counts as passed at 70 or more.
+
+| Skill | Nybörjare | Avancerad | Elit |
+| --- | --- | --- | --- |
+| prompting | `prompt-extract-invoice`: JSON with null for missing values | `prompting-few-shot-tone`: brand voice through examples | `prompting-injection-resistant`: emails that try to take over the model |
+| context | `context-project-commands`: AGENTS.md with the right commands | `context-agents-md`: house rules Claude follows the first time | `context-release-skill`: a skill Claude finds on its own |
+| tools | `tools-describe-tools`: descriptions that route to the right tool | `tools-strict-schema`: a schema that forces valid arguments | `tools-mcp-server`: your own MCP server, no dependencies |
+| agents | `agents-first-subagent`: a subagent with its own brief and tools | `agents-fan-out-command`: a slash command that fans out to parallel subagents | `agents-planner`: an orchestrator that plans for several agents |
+| env | `env-permissions`: deny rules that protect secrets | `env-hook-block-rm`: a PreToolUse hook that stops `rm -rf` | `env-stop-hook`: a Stop hook that waits for green tests |
+| api | `api-pick-model`: the cheapest model and settings that work | `api-prompt-caching`: caching that actually hits | `api-structured-output`: guaranteed JSON with a schema |
+| evals | `evals-first-eval`: a first eval that catches a broken prompt | `evals-eval-discriminates`: an eval that tells good from broken | `evals-llm-judge`: an LLM judge that catches made-up claims |
+
 ## How grading works
 
-1. **Runner.** Prompt exercises send your prompt to the Anthropic API once per test case. Env exercises copy a fixture repo plus your files into a temp folder, commit it, and run `claude -p` there. Eval exercises run your eval against hidden prompt variants.
+1. **Runner.** One per exercise type:
+   - `prompt`: your system prompt is sent once per test case.
+   - `tools`: your tool definitions are sent with each case. Checks see the first tool call as `{"tool", "input", "text"}`.
+   - `request`: your file is a whole Messages API request body, sent once per case in order, so prompt caching works the way it would in production.
+   - `env`: a fixture repo plus your files are copied into a temp folder, committed, and `claude -p` runs there. Most env exercises also copy `exercises/_shared/tool-log`, a PostToolUse hook that writes every tool call to `.dojo/tools.log` for the checks.
+   - `eval`: your eval runs against hidden prompt variants.
 2. **Deterministic checks.** JSON shape, values, regexes, files, shell commands, turn and cost limits.
 3. **Judge.** Only runs if at least half the checks pass. A stronger model grades each rubric criterion as `pass`, `partial` or `fail`, writing its reasoning first, through a schema-validated structured response. The rubric is prompt-cached, so reruns are cheap. An invalid verdict is retried once, then reported as an error instead of a made-up grade.
 4. **Score.** `100 × (checks weight × share of checks passed + judge weight × weighted judge grade)`. Default weights are 0.5 / 0.5. 70 or more is a pass.
@@ -69,9 +89,9 @@ exercises/<area>/<name>/
 id: prompt-extract-invoice      # unique, kebab-case
 title: Extract invoice data
 skill: prompting                # prompting | context | tools | agents | env | api | evals
-type: prompt                    # prompt | env | eval
-difficulty: 1                   # 1-3
-model: claude-haiku-5-5         # model that runs your solution (prompt and eval)
+type: prompt                    # prompt | tools | request | env | eval
+difficulty: 1                   # 1 nybörjare, 2 avancerad, 3 elit
+model: claude-haiku-5-5         # model that runs your solution (prompt, tools and eval)
 solution: system.md             # the main file in the workspace
 cases:
   - name: Swedish invoice
@@ -99,15 +119,22 @@ The task, in markdown.
 | `regex` | `pattern`, `flags?`, `negate?` | the output matches |
 | `command` | `run`, `exitCode?` | the shell command exits with `exitCode` (default 0) in the sandbox |
 | `file-exists` | `path`, `negate?` | the file exists in the sandbox |
-| `file-contains` | `path`, `pattern` | the file matches the regex |
+| `file-contains` | `path`, `pattern`, `negate?` | the file matches the regex (a missing file never matches) |
+| `min-cache-read` | `tokens` | the case read at least this many tokens from the prompt cache (request exercises) |
 | `max-turns` | `value` | Claude used at most this many turns |
 | `max-cost` | `usd` | the run cost at most this much |
 
-**Env exercises** add an `env` block. Its `fixture` folder is copied into the sandbox before your files:
+Regexes are JavaScript regexes. Use `flags: "i"` for case-insensitive matching; inline `(?i)` does not work.
+
+**Tools exercises**: the solution is `{"system"?, "tools": [...]}`. Check the call with `json-path` on `$.tool` and `$.input.<field>`; `$.tool` is `null` when the model called no tool.
+
+**Request exercises**: the solution is a Messages API body. `{{input}}` is replaced by the case input and `{{file:path}}` by a file from the exercise folder. Without `messages`, the input is sent as the user turn. The model must be one of the priced models, and `max_tokens` is capped at 16 000.
+
+**Env exercises** add an `env` block. Its fixture folders are copied into the sandbox in order, then your files on top:
 
 ```yaml
 env:
-  fixture: fixture
+  fixture: [../../_shared/tool-log, fixture]
   maxTurns: 20
   maxCostUsd: 1
   allowedTools: [Read, Edit, Write, "Bash(npm test:*)"]

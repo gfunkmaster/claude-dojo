@@ -1,0 +1,6 @@
+{
+  "model": "claude-opus-5-5",
+  "max_tokens": 16000,
+  "output_config": { "effort": "max" },
+  "system": "You are a world-class sentiment analyst. Analyse the message in depth and explain your conclusion."
+}

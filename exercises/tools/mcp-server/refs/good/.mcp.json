@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "orders": {
+      "command": "node",
+      "args": ["${CLAUDE_PROJECT_DIR:-.}/mcp/orders-server.mjs"]
+    }
+  }
+}

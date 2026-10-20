@@ -1,0 +1,6 @@
+{
+  "model": "claude-haiku-5-5",
+  "max_tokens": 200,
+  "output_config": { "effort": "low" },
+  "system": "Classify the sentiment of the customer message as positive, negative or neutral. Reply with only that one word in lowercase."
+}

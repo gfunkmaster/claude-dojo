@@ -1,0 +1,22 @@
+{
+  "tools": [
+    {
+      "name": "get_forecast",
+      "description": "Weather.",
+      "input_schema": { "type": "object", "properties": { "city": { "type": "string" } } }
+    },
+    {
+      "name": "search_docs",
+      "description": "Search.",
+      "input_schema": { "type": "object", "properties": { "query": { "type": "string" } } }
+    },
+    {
+      "name": "create_ticket",
+      "description": "Tickets.",
+      "input_schema": {
+        "type": "object",
+        "properties": { "title": { "type": "string" }, "priority": { "type": "string" } }
+      }
+    }
+  ]
+}

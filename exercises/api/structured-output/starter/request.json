@@ -1,0 +1,5 @@
+{
+  "model": "claude-haiku-5-5",
+  "max_tokens": 1024,
+  "system": "Extract the product as JSON."
+}

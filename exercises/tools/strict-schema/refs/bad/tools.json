@@ -1,0 +1,16 @@
+{
+  "tools": [
+    {
+      "name": "book_meeting",
+      "description": "Book a meeting with the details the user gives.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "duration": { "type": "string" },
+          "people": { "type": "string" },
+          "when": { "type": "string" }
+        }
+      }
+    }
+  ]
+}

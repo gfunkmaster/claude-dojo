@@ -6,10 +6,7 @@ import { EXERCISES_DIR } from "./helpers.ts";
 test("all bundled exercises load without errors", async () => {
   const { exercises, errors } = await loadExercises(EXERCISES_DIR);
   assert.deepEqual(errors, []);
-  assert.deepEqual(
-    exercises.map((e) => e.id),
-    ["context-agents-md", "env-hook-block-rm", "evals-eval-discriminates", "prompt-extract-invoice"],
-  );
+  assert.equal(exercises.length, 21);
 });
 
 const valid = `---

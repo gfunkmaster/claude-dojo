@@ -1,11 +1,13 @@
 import { parseArgs } from "node:util";
 import { defaultContext, type CliContext } from "./context.ts";
 import { listCommand } from "./list.ts";
+import { nextCommand } from "./next.ts";
 import { runCommand } from "./run.ts";
 import { statsCommand } from "./stats.ts";
 
 const USAGE = `Usage:
-  dojo list                    List exercises with best score and calibration status
+  dojo list                    The path from beginner to elite, with best score and calibration
+  dojo next                    The next exercise on the path you have not passed
   dojo run <id>                First time: set up your workspace. After that: grade it
   dojo run <id> --calibrate    Grade the reference answers to check the judge
   dojo run <id> --keep         Keep the env sandbox on disk for debugging
@@ -29,6 +31,8 @@ export async function main(argv: string[], ctx: CliContext = defaultContext()): 
   switch (command) {
     case "list":
       return listCommand(ctx);
+    case "next":
+      return nextCommand(ctx);
     case "run":
       if (!id) {
         ctx.out("dojo run needs an exercise id");

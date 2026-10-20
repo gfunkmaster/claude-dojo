@@ -6,6 +6,11 @@ import { z } from "zod";
 export const SKILLS = ["prompting", "context", "tools", "agents", "env", "api", "evals"] as const;
 export type Skill = (typeof SKILLS)[number];
 
+export const EXERCISE_TYPES = ["prompt", "env", "eval", "tools", "request"] as const;
+
+/** difficulty 1..3 */
+export const LEVELS = ["nybörjare", "avancerad", "elit"] as const;
+
 export const CheckSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("json-valid") }),
   z.object({ kind: z.literal("json-path"), path: z.string(), equals: z.unknown() }),
@@ -17,7 +22,13 @@ export const CheckSchema = z.discriminatedUnion("kind", [
   }),
   z.object({ kind: z.literal("command"), run: z.string(), exitCode: z.number().int().default(0) }),
   z.object({ kind: z.literal("file-exists"), path: z.string(), negate: z.boolean().default(false) }),
-  z.object({ kind: z.literal("file-contains"), path: z.string(), pattern: z.string() }),
+  z.object({
+    kind: z.literal("file-contains"),
+    path: z.string(),
+    pattern: z.string(),
+    negate: z.boolean().default(false),
+  }),
+  z.object({ kind: z.literal("min-cache-read"), tokens: z.number().int().positive() }),
   z.object({ kind: z.literal("max-turns"), value: z.number().int().positive() }),
   z.object({ kind: z.literal("max-cost"), usd: z.number().positive() }),
 ]);
@@ -56,7 +67,7 @@ export const FrontmatterSchema = z
     id: z.string().regex(/^[a-z0-9-]+$/),
     title: z.string(),
     skill: z.enum(SKILLS),
-    type: z.enum(["prompt", "env", "eval"]),
+    type: z.enum(EXERCISE_TYPES),
     difficulty: z.number().int().min(1).max(3),
     /** Model that runs the solution (prompt and eval exercises). */
     model: z.string().default("claude-haiku-5-5"),
@@ -71,7 +82,8 @@ export const FrontmatterSchema = z
       .default({ checks: 0.5, judge: 0.5 }),
     env: z
       .object({
-        fixture: z.string().default("fixture"),
+        /** One folder, or several copied in order (later ones win). */
+        fixture: z.union([z.string(), z.array(z.string())]).default("fixture"),
         maxTurns: z.number().int().positive().default(20),
         maxCostUsd: z.number().positive().default(1),
         allowedTools: z.array(z.string()).default([]),

@@ -28,9 +28,24 @@ export interface StructuredResponse<T> {
   usage: TokenUsage;
 }
 
+export interface ToolCall {
+  name: string;
+  input: unknown;
+}
+
+export interface SendResponse {
+  text: string;
+  toolCalls: ToolCall[];
+  /** The model that actually answered, for pricing. */
+  model: string;
+  usage: TokenUsage;
+}
+
 /** Every call to the Anthropic API goes through this, so tests can swap in a fake. */
 export interface LlmClient {
   complete(req: CompleteRequest): Promise<CompleteResponse>;
+  /** A raw Messages API request, for exercises where the request itself is the solution. */
+  send(params: Anthropic.MessageCreateParamsNonStreaming): Promise<SendResponse>;
   structured<T extends z.ZodType>(req: StructuredRequest<T>): Promise<StructuredResponse<z.infer<T>>>;
 }
 
@@ -63,6 +78,19 @@ export class AnthropicLlmClient implements LlmClient {
       .map((b) => b.text)
       .join("");
     return { text, usage: toUsage(msg.usage) };
+  }
+
+  async send(params: Anthropic.MessageCreateParamsNonStreaming): Promise<SendResponse> {
+    const msg = await this.client.messages.create(params);
+    if (msg.stop_reason === "refusal") throw new Error(`model refused: ${params.model}`);
+    const text = msg.content
+      .filter((b): b is Anthropic.TextBlock => b.type === "text")
+      .map((b) => b.text)
+      .join("");
+    const toolCalls = msg.content
+      .filter((b): b is Anthropic.ToolUseBlock => b.type === "tool_use")
+      .map((b) => ({ name: b.name, input: b.input }));
+    return { text, toolCalls, model: msg.model, usage: toUsage(msg.usage) };
   }
 
   async structured<T extends z.ZodType>(req: StructuredRequest<T>): Promise<StructuredResponse<z.infer<T>>> {

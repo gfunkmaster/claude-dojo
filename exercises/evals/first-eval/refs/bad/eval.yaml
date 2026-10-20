@@ -1,0 +1,13 @@
+cases:
+  - name: positive
+    text: "good"
+    checks:
+      - { kind: regex, pattern: "positive", flags: "i" }
+  - name: positive 2
+    text: "great"
+    checks:
+      - { kind: regex, pattern: "positive", flags: "i" }
+  - name: positive 3
+    text: "nice"
+    checks:
+      - { kind: regex, pattern: "positive", flags: "i" }

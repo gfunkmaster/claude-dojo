@@ -1,0 +1,22 @@
+{
+  "model": "claude-haiku-5-5",
+  "max_tokens": 512,
+  "output_config": {
+    "effort": "low",
+    "format": {
+      "type": "json_schema",
+      "schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "price_sek", "in_stock", "condition"],
+        "properties": {
+          "name": { "type": "string", "description": "Brand and model, without colour or condition." },
+          "price_sek": { "type": ["integer", "null"], "description": "Price in whole kronor, null if no price is given." },
+          "in_stock": { "type": "boolean", "description": "false if the ad says sold out or no longer available." },
+          "condition": { "type": "string", "enum": ["new", "like_new", "used"] }
+        }
+      }
+    }
+  },
+  "system": "Extract the product from a Swedish second-hand ad. \"nyskick\" is like_new; unopened or brand new is new; anything described as begagnad or used is used."
+}

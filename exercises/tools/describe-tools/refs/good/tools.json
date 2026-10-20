@@ -1,0 +1,43 @@
+{
+  "system": "You are the support assistant for Acme. Use a tool only when the user's request needs it. For greetings and small talk, answer briefly without tools.",
+  "tools": [
+    {
+      "name": "get_forecast",
+      "description": "Get the weather forecast for a city for today and the next 5 days. Use when the user asks about weather, rain, temperature or wind. Do not use for anything else.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "city": { "type": "string", "description": "City name as the user wrote it, e.g. \"Malmö\"." }
+        },
+        "required": ["city"]
+      }
+    },
+    {
+      "name": "search_docs",
+      "description": "Search Acme's product documentation. Use when the user asks how to do or configure something in the product (settings, SSO, billing setup). Do not use for bug reports or outages: those are tickets.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "query": { "type": "string", "description": "Short search query in English, e.g. \"enable SSO admin panel\"." }
+        },
+        "required": ["query"]
+      }
+    },
+    {
+      "name": "create_ticket",
+      "description": "Open a support ticket for a problem a customer has: something broken, an outage, a login failure. Do not use for how-to questions.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "title": { "type": "string", "description": "One-line summary of the problem." },
+          "priority": {
+            "type": "string",
+            "enum": ["low", "normal", "high"],
+            "description": "high when the customer is blocked or asks for high priority, otherwise normal."
+          }
+        },
+        "required": ["title", "priority"]
+      }
+    }
+  ]
+}
