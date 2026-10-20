@@ -1,0 +1,14 @@
+FAKTURA
+
+Fakturanummer: 2026-0412
+Fakturadatum: 14 september 2026
+Förfallodatum: 14 oktober 2026
+
+Från: Nordisk Kodverkstad AB, Storgatan 3, 411 38 Göteborg
+Till: Elmo Konsult, Box 12, 111 22 Stockholm
+
+Konsulttimmar, kodgranskning     5 h × 199,92 kr     999,60 kr
+Moms 25 %                                            249,90 kr
+Att betala                                         1 249,50 kr
+
+Bankgiro 123-4567

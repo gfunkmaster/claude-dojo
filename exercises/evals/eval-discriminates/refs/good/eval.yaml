@@ -1,0 +1,21 @@
+cases:
+  - name: double charge
+    text: "Hi, I was charged twice for my subscription this month. Can I get a refund?"
+    checks:
+      - { kind: regex, pattern: "^\\s*billing\\s*$" }
+  - name: crash
+    text: "The app crashes every time I open the settings page on Android 15."
+    checks:
+      - { kind: regex, pattern: "^\\s*bug\\s*$" }
+  - name: feature request
+    text: "It would be great if I could export my reports to CSV."
+    checks:
+      - { kind: regex, pattern: "^\\s*feature\\s*$" }
+  - name: not a ticket
+    text: "Hey team, just wanted to say happy holidays from all of us at Acme!"
+    checks:
+      - { kind: regex, pattern: "^\\s*other\\s*$" }
+  - name: bug that mentions money
+    text: "When I click Pay, the page freezes and nothing happens. Nothing was charged."
+    checks:
+      - { kind: regex, pattern: "^\\s*bug\\s*$" }

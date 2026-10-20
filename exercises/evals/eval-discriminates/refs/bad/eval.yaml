@@ -1,0 +1,13 @@
+cases:
+  - name: billing
+    text: "I was charged twice."
+    checks:
+      - { kind: regex, pattern: "billing", flags: "i" }
+  - name: billing again
+    text: "Please refund my last invoice."
+    checks:
+      - { kind: regex, pattern: "billing", flags: "i" }
+  - name: bug
+    text: "The app crashes on start."
+    checks:
+      - { kind: regex, pattern: "bug", flags: "i" }
