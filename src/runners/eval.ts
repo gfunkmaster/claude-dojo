@@ -6,7 +6,7 @@ import type { CheckResult } from "../checks/index.ts";
 import { CaseSchema } from "../core/exercise.ts";
 import { addUsage, ZERO_USAGE } from "../core/pricing.ts";
 import { runPromptCases } from "./prompt.ts";
-import type { Attempt, CaseRun, Runner } from "./types.ts";
+import type { CaseRun, Runner } from "./types.ts";
 
 export const EvalFileSchema = z.object({ cases: z.array(CaseSchema).min(1) }).strict();
 

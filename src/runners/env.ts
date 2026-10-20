@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { runCheck } from "../checks/index.ts";
 import { addUsage, ZERO_USAGE } from "../core/pricing.ts";
-import type { Attempt, CaseRun, Runner } from "./types.ts";
+import type { CaseRun, Runner } from "./types.ts";
 
 function git(cwd: string, ...args: string[]): string {
   const proc = spawnSync("git", ["-c", "user.name=dojo", "-c", "user.email=dojo@localhost", ...args], {
