@@ -1,0 +1,36 @@
+{
+  "name": "claude-dojo",
+  "version": "0.1.0",
+  "description": "A CLI that trains you to master the Claude ecosystem through graded exercises.",
+  "type": "module",
+  "private": true,
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "bin": {
+    "dojo": "./bin/dojo.js"
+  },
+  "scripts": {
+    "dojo": "node src/cli/bin.ts",
+    "test": "node --test \"test/**/*.test.ts\"",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gfunkmaster/claude-dojo.git"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.136.0",
+    "yaml": "^2.9.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^22.20.5",
+    "eslint": "^10.13.0",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.72.0"
+  }
+}
