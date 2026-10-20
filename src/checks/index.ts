@@ -63,7 +63,7 @@ export function runCheck(check: Check, ctx: CheckContext): CheckResult {
     }
     case "command": {
       const cwd = requireCwd(ctx);
-      const proc = spawnSync(check.run, { cwd, shell: true, encoding: "utf8", timeout: 120_000 });
+      const proc = spawnSync(check.run, { cwd, shell: true, encoding: "utf8", timeout: 120_000, env: cleanEnv() });
       const code = proc.status ?? -1;
       const passed = code === check.exitCode;
       return result(passed, passed ? "" : `exit ${code}: ${tail(proc.stdout + proc.stderr)}`);
@@ -90,6 +90,13 @@ export function runCheck(check: Check, ctx: CheckContext): CheckResult {
       return result(cost <= check.usd, `$${cost.toFixed(4)}`);
     }
   }
+}
+
+/** Node's test runner leaks NODE_TEST_CONTEXT, which makes a nested `node --test` report to the parent and exit 0. */
+export function cleanEnv(): NodeJS.ProcessEnv {
+  const env = { ...process.env };
+  delete env.NODE_TEST_CONTEXT;
+  return env;
 }
 
 function requireCwd(ctx: CheckContext): string {
