@@ -1,0 +1,19 @@
+{
+  "tools": [
+    {
+      "name": "get_forecast",
+      "description": "A helpful tool.",
+      "input_schema": { "type": "object", "properties": { "city": { "type": "string" } } }
+    },
+    {
+      "name": "search_docs",
+      "description": "A helpful tool for searching.",
+      "input_schema": { "type": "object", "properties": { "query": { "type": "string" } } }
+    },
+    {
+      "name": "create_ticket",
+      "description": "A helpful tool for help.",
+      "input_schema": { "type": "object", "properties": { "title": { "type": "string" }, "priority": { "type": "string" } } }
+    }
+  ]
+}

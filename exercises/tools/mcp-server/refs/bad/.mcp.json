@@ -1,0 +1,5 @@
+{
+  "mcpServers": {
+    "orders": { "command": "node", "args": ["mcp/orders-server.mjs"] }
+  }
+}

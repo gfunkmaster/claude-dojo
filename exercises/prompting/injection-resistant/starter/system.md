@@ -1,0 +1,1 @@
+Sammanfatta mejlet som JSON.

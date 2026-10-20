@@ -10,6 +10,8 @@ export interface CheckContext {
   cwd?: string;
   turns?: number;
   costUsd?: number;
+  /** Cache-read input tokens for this case (request exercises). */
+  cacheReadTokens?: number;
 }
 
 export interface CheckResult {
@@ -31,7 +33,9 @@ export function describeCheck(check: Check): string {
     case "file-exists":
       return `${check.negate ? "no " : ""}file ${check.path}`;
     case "file-contains":
-      return `file ${check.path} matches /${check.pattern}/`;
+      return `file ${check.path} ${check.negate ? "does not match" : "matches"} /${check.pattern}/`;
+    case "min-cache-read":
+      return `reads at least ${check.tokens} tokens from cache`;
     case "max-turns":
       return `at most ${check.value} turns`;
     case "max-cost":
@@ -70,8 +74,12 @@ export function runCheck(check: Check, ctx: CheckContext): CheckResult {
     }
     case "file-contains": {
       const file = path.join(requireCwd(ctx), check.path);
-      if (!existsSync(file)) return result(false, "file missing");
-      return result(new RegExp(check.pattern).test(readFileSync(file, "utf8")));
+      if (!existsSync(file)) return result(check.negate, "file missing");
+      return result(new RegExp(check.pattern).test(readFileSync(file, "utf8")) !== check.negate);
+    }
+    case "min-cache-read": {
+      const read = ctx.cacheReadTokens ?? 0;
+      return result(read >= check.tokens, `${read} tokens read from cache`);
     }
     case "max-turns": {
       const turns = ctx.turns ?? 0;

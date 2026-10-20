@@ -1,0 +1,13 @@
+cases:
+  - name: happy customer
+    text: "Supporten löste mitt problem på fem minuter, tack!"
+    checks:
+      - { kind: regex, pattern: "^\\s*positive\\s*$" }
+  - name: angry customer
+    text: "Appen kraschar varje gång jag öppnar den. Jag vill ha pengarna tillbaka."
+    checks:
+      - { kind: regex, pattern: "^\\s*negative\\s*$" }
+  - name: plain question
+    text: "Vilka öppettider har ni i helgen?"
+    checks:
+      - { kind: regex, pattern: "^\\s*neutral\\s*$" }

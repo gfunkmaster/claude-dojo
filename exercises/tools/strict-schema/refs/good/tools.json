@@ -1,0 +1,21 @@
+{
+  "system": "You help people book meetings. Only call book_meeting when you know the duration, at least one attendee email, the start date and time, and the timezone. If anything is missing, ask the user for it instead of guessing.",
+  "tools": [
+    {
+      "name": "book_meeting",
+      "description": "Book a meeting in the calendar system. Call only when every field is known from the user's message; otherwise ask the user for the missing details.",
+      "strict": true,
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["duration_minutes", "attendees", "start", "timezone"],
+        "properties": {
+          "duration_minutes": { "type": "integer", "description": "Length in whole minutes. \"en kvart\" is 15, \"en timme\" is 60." },
+          "attendees": { "type": "array", "items": { "type": "string", "format": "email" }, "description": "Attendee email addresses, in the order the user gave them." },
+          "start": { "type": "string", "description": "Local start time as YYYY-MM-DDTHH:MM, e.g. 2026-10-22T14:00. No seconds, no offset." },
+          "timezone": { "type": "string", "enum": ["Europe/Stockholm", "Europe/London", "America/New_York"], "description": "IANA timezone the start time is in." }
+        }
+      }
+    }
+  ]
+}

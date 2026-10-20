@@ -33,7 +33,7 @@ test("file and command checks run in the sandbox", async () => {
   writeFileSync(path.join(cwd, "a/f.txt"), "hello world");
   assert.equal(runCheck({ kind: "file-exists", path: "a/f.txt", negate: false }, { cwd }).passed, true);
   assert.equal(runCheck({ kind: "file-exists", path: "nope", negate: true }, { cwd }).passed, true);
-  assert.equal(runCheck({ kind: "file-contains", path: "a/f.txt", pattern: "wor" }, { cwd }).passed, true);
+  assert.equal(runCheck({ kind: "file-contains", path: "a/f.txt", pattern: "wor", negate: false }, { cwd }).passed, true);
   assert.equal(runCheck({ kind: "command", run: "test -f a/f.txt", exitCode: 0 }, { cwd }).passed, true);
   const failing = runCheck({ kind: "command", run: "exit 3", exitCode: 0 }, { cwd });
   assert.equal(failing.passed, false);

@@ -16,9 +16,9 @@ function git(cwd: string, ...args: string[]): string {
 }
 
 /** Copies the fixture repo plus your solution into a temp folder and commits it as the baseline. */
-export async function prepareSandbox(fixtureDir: string, solutionDir: string): Promise<string> {
+export async function prepareSandbox(fixtureDirs: string[], solutionDir: string): Promise<string> {
   const sandbox = await mkdtemp(path.join(tmpdir(), "dojo-"));
-  await cp(fixtureDir, sandbox, { recursive: true });
+  for (const dir of fixtureDirs) await cp(dir, sandbox, { recursive: true });
   await cp(solutionDir, sandbox, { recursive: true });
   git(sandbox, "init", "-q");
   git(sandbox, "add", "-A");
@@ -37,7 +37,8 @@ export const envRunner: Runner = async (exercise, solutionDir, deps) => {
 
   for (const c of exercise.cases) {
     if (!c.task) throw new Error(`env case ${c.name} has no task`);
-    const sandbox = await prepareSandbox(path.join(exercise.dir, env.fixture), solutionDir);
+    const fixtures = (Array.isArray(env.fixture) ? env.fixture : [env.fixture]).map((f) => path.join(exercise.dir, f));
+    const sandbox = await prepareSandbox(fixtures, solutionDir);
     try {
       deps.log?.(`  ${c.name}: running claude -p in ${sandbox}`);
       const res = await deps.claude.run({

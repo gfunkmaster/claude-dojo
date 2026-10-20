@@ -1,0 +1,9 @@
+{
+  "name": "slugs",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "echo 'npm test is deprecated in this repo' && exit 1",
+    "check": "node --test \"test/**/*.test.js\""
+  }
+}

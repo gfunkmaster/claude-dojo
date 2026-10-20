@@ -1,0 +1,5 @@
+{
+  "model": "claude-opus-5-5",
+  "max_tokens": 4096,
+  "system": "Extract the product information from the ad and present it as JSON. Explain any assumptions you make."
+}

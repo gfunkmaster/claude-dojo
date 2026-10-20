@@ -1,0 +1,10 @@
+{
+  "model": "claude-haiku-5-5",
+  "max_tokens": 1024,
+  "output_config": { "effort": "low" },
+  "system": [
+    { "type": "text", "text": "You answer employees' questions using only Dojo's staff handbook below. Answer in Swedish in one or two sentences and quote the exact figure from the handbook." },
+    { "type": "text", "text": "{{file:docs/handbook.md}}", "cache_control": { "type": "ephemeral" } }
+  ],
+  "messages": [{ "role": "user", "content": "{{input}}" }]
+}

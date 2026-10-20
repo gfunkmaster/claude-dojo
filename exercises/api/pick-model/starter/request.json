@@ -1,0 +1,5 @@
+{
+  "model": "claude-opus-5-5",
+  "max_tokens": 16000,
+  "system": "What is the sentiment of this message?"
+}
