@@ -1,0 +1,5 @@
+cases:
+  - name: fakturafråga
+    text: "Hi, I was charged twice for my subscription this month."
+    checks:
+      - { kind: regex, pattern: "billing" }
