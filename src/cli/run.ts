@@ -4,6 +4,7 @@ import { loadExercises, type Exercise } from "../core/exercise.ts";
 import { gradeSolution } from "../core/grade.ts";
 import type { RunResult } from "../core/result.ts";
 import { calibrate } from "../judge/calibrate.ts";
+import { canRun } from "../llm/backend.ts";
 import type { CliContext } from "./context.ts";
 
 export interface RunOptions {
@@ -31,6 +32,13 @@ export async function runCommand(ctx: CliContext, id: string, opts: RunOptions =
     ctx.out(`unknown exercise: ${id} (see \`dojo list\`)`);
     return 1;
   }
+  const solutionDir = path.join(ctx.workspaceDir, exercise.id);
+  const firstRun = !opts.calibrate && !(await exists(solutionDir));
+  if (!firstRun && !canRun(ctx.backend, exercise)) {
+    ctx.out(`${exercise.id} is a ${exercise.type} exercise: it sends raw Messages API requests, so it needs API credits.`);
+    ctx.out("Set ANTHROPIC_API_KEY and DOJO_BACKEND=api to run it. On your subscription, `dojo next` skips these.");
+    return 1;
+  }
   const deps = { llm: ctx.llm(), claude: ctx.claude(), keepSandbox: opts.keep ?? false, log: ctx.out };
 
   if (opts.calibrate) {
@@ -41,12 +49,11 @@ export async function runCommand(ctx: CliContext, id: string, opts: RunOptions =
       ctx.out(`  ${r.ok ? "ok  " : "FAIL"} ${r.label.padEnd(4)} ${String(r.score).padStart(3)}  expected ${r.expect[0]}–${r.expect[1]}  (${r.dir})`);
     }
     ctx.out(cal.ok ? "Calibration passed." : "Calibration failed: the exercise is marked unreliable.");
-    ctx.out(`Cost: $${cal.costUsd.toFixed(4)}`);
+    ctx.out(`Cost: $${cal.costUsd.toFixed(4)}${ctx.backend === "claude-cli" ? " (API list price; your subscription covers it)" : ""}`);
     return cal.ok ? 0 : 1;
   }
 
-  const solutionDir = path.join(ctx.workspaceDir, exercise.id);
-  if (!(await exists(solutionDir))) {
+  if (firstRun) {
     const starter = path.join(exercise.dir, "starter");
     await cp(starter, solutionDir, { recursive: true });
     ctx.out(`# ${exercise.title}\n\n${exercise.body}\n`);
@@ -80,5 +87,6 @@ export function printResult(ctx: CliContext, r: RunResult): void {
   if (r.summary) ctx.out(`\n${r.summary}`);
   const judgePart = r.judgeScore === null ? "-" : `${Math.round(r.judgeScore * 100)}%`;
   ctx.out(`\nScore ${r.score}/100 ${r.passed ? "(passed)" : "(not passed)"}  checks ${Math.round(r.checkScore * 100)}%  judge ${judgePart}`);
-  ctx.out(`Tokens in ${r.tokens.input} out ${r.tokens.output} cache ${r.tokens.cacheRead}/${r.tokens.cacheWrite}  cost $${r.costUsd.toFixed(4)}  turns ${r.turns}`);
+  const costNote = ctx.backend === "claude-cli" ? " (API list price; your subscription covers it)" : "";
+  ctx.out(`Tokens in ${r.tokens.input} out ${r.tokens.output} cache ${r.tokens.cacheRead}/${r.tokens.cacheWrite}  cost $${r.costUsd.toFixed(4)}${costNote}  turns ${r.turns}`);
 }

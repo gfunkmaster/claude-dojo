@@ -6,7 +6,7 @@ import { createInterface } from "node:readline";
 import type { z } from "zod";
 import { cleanEnv } from "../src/checks/index.ts";
 import type { TokenUsage } from "../src/core/pricing.ts";
-import type { ClaudeCli, ClaudeRunRequest, ClaudeRunResult } from "../src/llm/claude-cli.ts";
+import type { ClaudeAskRequest, ClaudeAskResult, ClaudeCli, ClaudeRunRequest, ClaudeRunResult } from "../src/llm/claude-cli.ts";
 import type {
   CompleteRequest,
   CompleteResponse,
@@ -394,6 +394,15 @@ class Sandbox {
  */
 export class FakeClaude implements ClaudeCli {
   runs: ClaudeRunRequest[] = [];
+  asks: ClaudeAskRequest[] = [];
+
+  /** A single tool-free turn, answered like FakeLlm would, so the claude-cli backend calibrates offline. */
+  async ask(req: ClaudeAskRequest): Promise<ClaudeAskResult> {
+    this.asks.push(req);
+    const base = { isError: false, turns: 1, costUsd: 0.01, usage: USAGE, models: [req.model] };
+    if (req.jsonSchema) return { ...base, result: "", structuredOutput: defaultVerdict(req.system, req.prompt) };
+    return { ...base, result: respond(req.system, req.prompt) };
+  }
 
   async run(req: ClaudeRunRequest): Promise<ClaudeRunResult> {
     this.runs.push(req);
