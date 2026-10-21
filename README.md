@@ -146,14 +146,28 @@ The schedule is computed from `results/` every time: the same runs always give t
 
 ## Web UI
 
-A local, read-only dashboard over the same files the CLI writes: score trend per skill, reviews that are due, the path by level with status and calibration, the next new exercise, and every run with its checks, judge feedback, tokens and turns.
+The whole training loop in the browser: open an exercise, read the task, edit your solution, grade it and see the result, then continue with the next review or exercise. Alongside it: score trend per skill, reviews that are due, the path by level with status and calibration, every run with its checks, judge feedback, tokens and turns, and the ticket playbooks with copy buttons for their prompt templates.
 
 ```sh
 npm install        # once; installs the web workspace too
-npm run web        # http://localhost:4321
+npm run web        # http://127.0.0.1:4321
 ```
 
-It reads `results/` and `generated/` under `DOJO_HOME` (default: the repo) and the bundled `exercises/`, builds the review schedule from your runs the way `dojo review` does, and honours `DOJO_HOME`, `DOJO_EXERCISES` and `DOJO_BACKEND` like the CLI. Pages are rendered on the server on every request, so a `dojo run` in another terminal shows up on reload. It never writes, never calls a model and has no login, so keep it on localhost. You still run exercises with `dojo run`; each page shows the command to copy.
+On an exercise page, **Start exercise** copies the starter into your workspace (`<DOJO_HOME>/workspace/<id>`, the same folder `dojo run` uses). Edit the files in the editor, add one if the task asks for it, and press **Save and grade**. **Start over** is `--fresh` (your old solution is moved aside, never deleted) and **Calibrate the judge** is `--calibrate`. The output streams in as it runs, then the page shows the graded run and what's next. Closing the tab doesn't stop a grading; its result is saved either way. One grading runs at a time.
+
+Grading is `dojo run` itself: the server starts `node src/cli/bin.ts run <id> [--fresh|--calibrate]` as a child process, so it uses the same backend as the terminal (`claude -p` on your subscription unless `DOJO_BACKEND=api`), writes the same results and refreshes the schedule the same way. The UI honours `DOJO_HOME`, `DOJO_EXERCISES` and `DOJO_BACKEND` like the CLI, and pages are rendered on every request, so a `dojo run` in another terminal shows up on reload. You can mix the two freely.
+
+### Threat model
+
+The UI has no login, and it runs graders and writes files, so it must only ever answer you:
+
+- It listens on `127.0.0.1` only (`--hostname 127.0.0.1` in `web/package.json`), so nothing else on the network reaches it. Don't change that or put it behind a tunnel.
+- Every request must have a localhost `Host` header. A malicious site that points its own domain at 127.0.0.1 (DNS rebinding) is refused.
+- Every write (save, grade) must carry this UI's own `Origin` and a JSON body, so another site in your browser can't post a form or a fetch to it (CSRF).
+- Exercise ids must match a known exercise, and the only things a request chooses on the command line are that id and one of three fixed modes. No shell is involved.
+- Saves stay inside that exercise's workspace: relative paths only, no `..`, `.git` or `node_modules`, existing symlinks are never followed, 256 KB per file, and only after the exercise has been started.
+
+What it doesn't protect against: other programs and users on your own machine, which can reach 127.0.0.1 like you can. The code you grade is yours and runs as you, exactly as with `dojo run`. The checks live in `web/proxy.ts`, `src/dashboard/local.ts` and `src/dashboard/workspace.ts`, and are tested in `test/web-server.test.ts`.
 
 The app lives in `web/` (Next.js App Router, an npm workspace). Everything it shows comes from `src/dashboard`, which builds on `src/core` and `src/store` and is tested with the rest of the suite. `npm run web:build` makes a production build; `npm run start --workspace web` serves it.
 
@@ -180,7 +194,7 @@ Everything lives under `DOJO_HOME` (default: the repo), and all of it is in `.gi
 | `results/<timestamp>_<id>.json` | one graded run | once, never changed | `RunResultSchema` in `src/core/result.ts` |
 | `results/calibration/<id>.json` | the latest calibration of an exercise | replaced on each `--calibrate` | `CalibrationSchema` in `src/core/result.ts` |
 | `schedule.json` | snapshot of the review schedule | rewritten by `dojo run`, `dojo review` and `dojo next` | `ScheduleSchema` in `src/core/schedule.ts` |
-| `workspace/<id>/` | your solution | by you | the exercise's files |
+| `workspace/<id>/` | your solution | by you, in an editor or the web UI | the exercise's files |
 | `generated/<id>/` | your personal exercises | `dojo analyze --generate` | an exercise folder |
 
 `<timestamp>` is `startedAt` with `:` and `.` replaced by `-`, so the file names sort by time.
@@ -362,4 +376,4 @@ Project rules for agents and humans are in [AGENTS.md](AGENTS.md).
 
 - Phase 2: done, see [Personal exercises from your sessions](#personal-exercises-from-your-sessions).
 - Phase 3: done, see [Spaced repetition](#spaced-repetition).
-- Phase 4: done, see [Web UI](#web-ui). Running exercises from the UI is a possible next step.
+- Phase 4: done, see [Web UI](#web-ui).

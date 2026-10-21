@@ -42,7 +42,11 @@ export default async function Overview() {
         ) : (
           <div>You have passed every exercise you can run on this backend.</div>
         )}
-        {d.next && <code className="cmd">dojo run {d.next.id}</code>}
+        {d.next && (
+          <a className="button primary" href={`/exercises/${d.next.id}`}>
+            Open
+          </a>
+        )}
       </div>
       {skipped > 0 && (
         <p className="muted">{skipped} tools/request exercises are skipped: they need API credits (DOJO_BACKEND=api).</p>
@@ -95,7 +99,7 @@ export default async function Overview() {
       <h2>Recent runs</h2>
       {d.recentRuns.length === 0 ? (
         <p className="muted">
-          No runs yet. Start with <code>dojo next</code>.
+          No runs yet. Open the next exercise above to start.
         </p>
       ) : (
         <div className="table-wrap">

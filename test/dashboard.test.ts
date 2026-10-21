@@ -5,7 +5,7 @@ import { test } from "node:test";
 import type { RunResult } from "../src/core/result.ts";
 import { defaultSource, loadDashboard, loadExerciseDetail, loadRun, runId, type DashboardSource } from "../src/dashboard/index.ts";
 import { JsonResultStore } from "../src/store/json-store.ts";
-import { EXERCISES_DIR, tempDir } from "./helpers.ts";
+import { EXERCISES_DIR, PLAYBOOKS_DIR, tempDir } from "./helpers.ts";
 
 const run = (id: string, startedAt: string, score: number, failedCriteria: string[] = []): RunResult => ({
   schemaVersion: 1,
@@ -34,9 +34,12 @@ async function source(): Promise<DashboardSource & { home: string; store: JsonRe
   const home = await tempDir();
   return {
     home,
+    repoRoot: path.resolve(import.meta.dirname, ".."),
     exercisesDir: EXERCISES_DIR,
     generatedDir: path.join(home, "generated"),
     store: new JsonResultStore(path.join(home, "results")),
+    workspaceDir: path.join(home, "workspace"),
+    playbooksDir: PLAYBOOKS_DIR,
     backend: "claude-cli",
   };
 }
@@ -176,6 +179,8 @@ test("defaultSource follows DOJO_HOME, DOJO_EXERCISES and DOJO_BACKEND like the 
   const src = defaultSource("/repo", { DOJO_HOME: home, DOJO_EXERCISES: "/ex", DOJO_BACKEND: "api" });
   assert.equal(src.exercisesDir, "/ex");
   assert.equal(src.generatedDir, path.join(home, "generated"));
+  assert.equal(src.workspaceDir, path.join(home, "workspace"));
+  assert.equal(src.playbooksDir, path.join("/repo", "playbooks"));
   assert.equal(src.backend, "api");
 
   const plain = defaultSource("/repo", {});
