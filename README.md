@@ -29,6 +29,8 @@ dojo run prompt-extract-invoice
 dojo run <id> --calibrate      # grade the reference answers to check the exercise itself
 dojo run <id> --keep           # env exercises: keep the sandbox for debugging
 dojo run <id> --fresh          # move your old solution aside and start over from the starter
+dojo hint <id>                 # stuck? first what to focus on, the second time a stronger nudge
+dojo hint <id> --solution      # the reference solution and why it works (after your first graded run)
 dojo stats                     # per skill: mastery, trend, due reviews, cost, most missed criteria
 dojo stats <id>                # history for one exercise
 dojo playbook [name]           # routine and prompt template for a ticket: feature, bugfix, research
@@ -117,6 +119,22 @@ Generated exercises go to `generated/<id>/` (ids start with `my-`, and `source` 
 
 The transcript format is internal to Claude Code and changes between versions. The parser reads a few stable fields and skips lines it doesn't understand, so a new version can make it miss things but should not make it crash.
 
+## Hints and the solution
+
+Stuck on an exercise? Ask for help in steps, so you learn the move instead of copying the answer:
+
+| Level | `dojo hint <id>` | What you get |
+| --- | --- | --- |
+| 1 | the first time | What to focus on: the checks that failed in your last run and the criteria you missed, most important first. Before your first graded run, the criteria the judge weighs most. |
+| 2 | the second time | A stronger nudge: the judge's reasoning and tip for each missed criterion, the exercise's own hints, and the reference solution with every line cut to its first few words, so you see its shape and ideas but still write it yourself. |
+| 3 | `--solution` | The reference solution in full, why it works (the exercise's explanation, or the rubric it meets), and the bad reference to compare with. |
+
+`--level <n>` shows a given level again. After two hints, `dojo hint` tells you that only the solution is left instead of showing it: you have to ask for it. The solution unlocks after your first graded run, because trying first is what makes the answer stick. After you pass, the levels start over at 1.
+
+Hints are built from the exercise's rubric, its reference answers and your last run, with no model calls: they cost nothing and are the same every time. An exercise can add hand-written nudges and an explanation in its frontmatter (`hints`, `explanation`; see [Writing a new exercise](#writing-a-new-exercise)).
+
+Every hint you look at is recorded in `results/hints/`. Hints 1 and 2 cost you nothing. The solution does: a run graded **within a day** of seeing it is *assisted*. An assisted pass doesn't move the exercise up a box (it comes back tomorrow, like a shaky pass), and it doesn't count toward `MASTERY` (your last unassisted score does, or 0 if there is none). `dojo stats <id>` shows the help you had for each run in a `HELP` column. Solve it again from memory the next day (`dojo run <id> --fresh`) and it counts in full.
+
 ## Spaced repetition
 
 Every exercise you have run once is on a review schedule, so the ones you failed come back and the ones you passed come back later to check they stuck. It is a [Leitner system](https://en.wikipedia.org/wiki/Leitner_system) with five boxes:
@@ -134,6 +152,7 @@ After each graded run:
 - **Fail** (under 70): back to box 1, so it is due tomorrow.
 - **Shaky pass** (70 to 84): stays in its box (box 1 if it was new).
 - **Solid pass** (85 or more): up one box. A new exercise you pass solidly starts in box 2.
+- **Assisted pass** (graded within a day of viewing the solution, see [Hints](#hints-and-the-solution)): stays in its box, like a shaky pass.
 - A pass **before** the exercise is due doesn't move it. Fixing a failed exercise the same day is good, but it still comes back tomorrow.
 
 `dojo review` lists what is due, failed ones first and then the most overdue, with the criteria you missed last time. `dojo next` shows a due review before any new exercise. To review a failed exercise, keep working in its workspace. To review one you passed, use `dojo run <id> --fresh`: it renames your old solution to `workspace/<id>.old-<timestamp>/` (nothing is deleted) and gives you the starter again, so you solve it from memory instead of regrading the same files.
@@ -142,7 +161,7 @@ After each graded run:
 
 Generated exercises are scheduled like the bundled ones. If you delete one, its runs stay in `results/` but it drops out of the review list. Exercises that need API credits are left out of `dojo review` and `dojo next` on a subscription, with a note.
 
-The schedule is computed from `results/` every time: the same runs always give the same schedule, and there is no state to lose. Deleting a result file changes the schedule; nothing else does.
+The schedule is computed from `results/` every time: the same runs and hints always give the same schedule, and there is no state to lose. Deleting a result file changes the schedule; nothing else does.
 
 ## Web UI
 
@@ -153,7 +172,7 @@ npm install        # once; installs the web workspace too
 npm run web        # http://127.0.0.1:4321
 ```
 
-On an exercise page, **Start exercise** copies the starter into your workspace (`<DOJO_HOME>/workspace/<id>`, the same folder `dojo run` uses). Edit the files in the editor, add one if the task asks for it, and press **Save and grade**. **Start over** is `--fresh` (your old solution is moved aside, never deleted) and **Calibrate the judge** is `--calibrate`. The output streams in as it runs, then the page shows the graded run and what's next. Closing the tab doesn't stop a grading; its result is saved either way. One grading runs at a time.
+On an exercise page, **Start exercise** copies the starter into your workspace (`<DOJO_HOME>/workspace/<id>`, the same folder `dojo run` uses). Edit the files in the editor, add one if the task asks for it, and press **Save and grade**. **Start over** is `--fresh` (your old solution is moved aside, never deleted) and **Calibrate the judge** is `--calibrate`. The output streams in as it runs, then the page shows the graded run and what's next. Under **Stuck?**, **Get hint** gives the next hint level and **Show solution** (after your first graded run, with a confirm) the reference solution; nothing of either is in the page until you click, and each click runs `dojo hint <id> --level <n> --json`, so it is recorded like a hint in the terminal. Closing the tab doesn't stop a grading; its result is saved either way. One grading runs at a time.
 
 Grading is `dojo run` itself: the server starts `node src/cli/bin.ts run <id> [--fresh|--calibrate]` as a child process, so it uses the same backend as the terminal (`claude -p` on your subscription unless `DOJO_BACKEND=api`), writes the same results and refreshes the schedule the same way. The UI honours `DOJO_HOME`, `DOJO_EXERCISES` and `DOJO_BACKEND` like the CLI, and pages are rendered on every request, so a `dojo run` in another terminal shows up on reload. You can mix the two freely.
 
@@ -193,6 +212,7 @@ Everything lives under `DOJO_HOME` (default: the repo), and all of it is in `.gi
 | --- | --- | --- | --- |
 | `results/<timestamp>_<id>.json` | one graded run | once, never changed | `RunResultSchema` in `src/core/result.ts` |
 | `results/calibration/<id>.json` | the latest calibration of an exercise | replaced on each `--calibrate` | `CalibrationSchema` in `src/core/result.ts` |
+| `results/hints/<timestamp>_<id>_<level>.json` | a hint you looked at (`level` 3 is the solution) | once, never changed | `HintEventSchema` in `src/core/help.ts` |
 | `schedule.json` | snapshot of the review schedule | rewritten by `dojo run`, `dojo review` and `dojo next` | `ScheduleSchema` in `src/core/schedule.ts` |
 | `workspace/<id>/` | your solution | by you, in an editor or the web UI | the exercise's files |
 | `generated/<id>/` | your personal exercises | `dojo analyze --generate` | an exercise folder |
@@ -224,6 +244,12 @@ Everything lives under `DOJO_HOME` (default: the repo), and all of it is in `.gi
   "models": ["claude-haiku-5-5", "claude-opus-5-5"],
   "solutionHash": "…"
 }
+```
+
+**A hint you looked at** (`schemaVersion: 1`). A run of the same exercise graded less than 24 hours after a `level: 3` event is assisted (`isAssisted` in `src/core/help.ts`):
+
+```jsonc
+{ "schemaVersion": 1, "exerciseId": "prompt-extract-invoice", "level": 2, "at": "2026-10-21T17:05:00.000Z" }
 ```
 
 **The schedule** (`schemaVersion: 1`). It stores when each exercise is due, not whether it is due, so it doesn't go stale as time passes; compare `dueAt` with the current time. `results/` is the source of truth and `schedule.json` is only a convenience copy, so prefer computing it:
@@ -310,6 +336,10 @@ references:                     # at least one good and one bad
   - { label: bad, dir: refs/bad, expect: [0, 50] }
 weights: { checks: 0.5, judge: 0.5 }   # optional
 playbook: bugfix                        # optional: the ticket routine it trains (feature | bugfix | research)
+hints:                                  # optional: nudges for `dojo hint` level 2, in Swedish
+  - Write the JSON shape out verbatim, with a type for each field.
+explanation: |                          # optional: why refs/good works, shown with the solution
+  It shows the exact JSON and says nothing else may be in the reply.
 ---
 
 The task, in markdown.

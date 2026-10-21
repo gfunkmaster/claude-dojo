@@ -2,6 +2,7 @@ import { cp, rename, stat } from "node:fs/promises";
 import path from "node:path";
 import { loadExercises, type Exercise } from "../core/exercise.ts";
 import { gradeSolution } from "../core/grade.ts";
+import { isAssisted } from "../core/help.ts";
 import type { RunResult } from "../core/result.ts";
 import { relativeDays } from "../core/schedule.ts";
 import { calibrate } from "../judge/calibrate.ts";
@@ -80,6 +81,11 @@ export async function runCommand(ctx: CliContext, id: string, opts: RunOptions =
   ctx.out(`Saved: ${file}`);
   const entry = (await refreshSchedule(ctx)).find((e) => e.exerciseId === exercise.id);
   if (entry) ctx.out(`Next review: ${relativeDays(entry.dueAt, now(ctx))} (box ${entry.box})`);
+  if (result.passed && isAssisted(result, await ctx.store.listHints(exercise.id))) {
+    ctx.out("You viewed the solution in the last day, so this pass doesn't move the exercise up. Solve it from memory next time.");
+  } else if (!result.passed) {
+    ctx.out(`Stuck? \`dojo hint ${exercise.id}\` tells you what to focus on, one step at a time.`);
+  }
   return result.passed ? 0 : 1;
 }
 

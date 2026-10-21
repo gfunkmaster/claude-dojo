@@ -25,7 +25,7 @@ export interface ReviewState {
 
 /** Rebuilds the schedule from every run and saves the snapshot for other readers (the web UI). */
 export async function refreshSchedule(ctx: CliContext, runs?: RunResult[]): Promise<ScheduleEntry[]> {
-  const entries = buildSchedule(runs ?? (await ctx.store.listRuns()));
+  const entries = buildSchedule(runs ?? (await ctx.store.listRuns()), await ctx.store.listHints());
   await writeSchedule(ctx.scheduleFile, toSchedule(entries, now(ctx)));
   return entries;
 }

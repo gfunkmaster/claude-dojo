@@ -1,5 +1,7 @@
 import { spawn as nodeSpawn, type ChildProcess, type SpawnOptions } from "node:child_process";
 import path from "node:path";
+import { isHintLevel, type HintLevel } from "../core/help.ts";
+import type { Hint } from "../core/hints.ts";
 import { isExerciseId } from "./workspace.ts";
 
 /**
@@ -130,4 +132,55 @@ export class Runner {
 export function sharedRunner(repoRoot: string): Runner {
   const g = globalThis as { __dojoRunner?: Runner };
   return (g.__dojoRunner ??= new Runner({ repoRoot }));
+}
+
+/** Arguments after `node` for `dojo hint <id> --level <n> --json`. */
+export function hintArgs(repoRoot: string, id: string, level: HintLevel): string[] {
+  if (!isExerciseId(id)) throw new Error(`invalid exercise id: ${id}`);
+  if (!isHintLevel(level)) throw new Error(`invalid hint level: ${String(level)}`);
+  return [path.join(repoRoot, "src", "cli", "bin.ts"), "hint", id, "--level", String(level), "--json"];
+}
+
+export class HintError extends Error {}
+
+/**
+ * Asks the CLI for a hint, so it stays the only thing that records one. Quick, and
+ * independent of a grading run. Rejects with HintError when the CLI refuses (the
+ * solution before a first attempt), with its message.
+ */
+export function fetchHint(opts: RunnerOptions, id: string, level: HintLevel): Promise<Hint> {
+  const args = hintArgs(opts.repoRoot, id, level);
+  const env = { ...(opts.env ?? process.env) };
+  delete env.NODE_OPTIONS;
+  const child = (opts.spawn ?? nodeSpawn)(opts.node ?? process.execPath, args, {
+    cwd: opts.repoRoot,
+    env,
+    stdio: ["ignore", "pipe", "pipe"],
+    shell: false,
+  });
+  return new Promise((resolve, reject) => {
+    let stdout = "";
+    let stderr = "";
+    child.stdout?.setEncoding("utf8");
+    child.stderr?.setEncoding("utf8");
+    child.stdout?.on("data", (c: string) => (stdout += c));
+    child.stderr?.on("data", (c: string) => (stderr += c));
+    const timer = setTimeout(() => child.kill("SIGTERM"), opts.timeoutMs ?? 30_000);
+    child.on("error", (err) => {
+      clearTimeout(timer);
+      reject(err);
+    });
+    child.on("close", (code) => {
+      clearTimeout(timer);
+      if (code !== 0) {
+        reject(new HintError((stdout || stderr).trim() || `dojo hint exited with ${code}`));
+        return;
+      }
+      try {
+        resolve(JSON.parse(stdout) as Hint);
+      } catch {
+        reject(new Error("dojo hint printed something that isn't JSON"));
+      }
+    });
+  });
 }

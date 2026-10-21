@@ -1,6 +1,7 @@
 import { parseArgs } from "node:util";
 import { analyzeCommand } from "./analyze.ts";
 import { defaultContext, type CliContext } from "./context.ts";
+import { hintCommand } from "./hint.ts";
 import { listCommand } from "./list.ts";
 import { nextCommand } from "./next.ts";
 import { playbookCommand } from "./playbook.ts";
@@ -16,6 +17,9 @@ const USAGE = `Usage:
   dojo run <id> --calibrate    Grade the reference answers to check the judge
   dojo run <id> --keep         Keep the env sandbox on disk for debugging
   dojo run <id> --fresh        Move your old solution aside and start over from the starter
+  dojo hint <id>               A hint: what to focus on first, a stronger nudge the second time
+    --level <n>                A given level: 1 focus, 2 nudge, 3 solution
+    --solution                 The reference solution and why it works (after your first graded run)
   dojo playbook [name]         Working routine and prompt template for a ticket: feature, bugfix, research
   dojo stats [id]              Per skill: mastery, trend, due reviews and cost; or one exercise's history
   dojo analyze                 Find patterns in your Claude Code sessions (local, no model calls)
@@ -38,6 +42,9 @@ export async function main(argv: string[], ctx: CliContext = defaultContext()): 
       project: { type: "string" },
       generate: { type: "boolean", default: false },
       max: { type: "string", default: "3" },
+      level: { type: "string" },
+      solution: { type: "boolean", default: false },
+      json: { type: "boolean", default: false },
       help: { type: "boolean", short: "h", default: false },
     },
   });
@@ -57,6 +64,18 @@ export async function main(argv: string[], ctx: CliContext = defaultContext()): 
         return 1;
       }
       return runCommand(ctx, id, { calibrate: values.calibrate, keep: values.keep, fresh: values.fresh });
+    case "hint": {
+      if (!id) {
+        ctx.out("dojo hint needs an exercise id");
+        return 1;
+      }
+      const level = values.level === undefined ? undefined : Number(values.level);
+      return hintCommand(ctx, id, {
+        ...(level !== undefined ? { level } : {}),
+        solution: values.solution,
+        json: values.json,
+      });
+    }
     case "review":
       return reviewCommand(ctx);
     case "stats":

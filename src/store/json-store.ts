@@ -1,5 +1,6 @@
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { HintEventSchema, type HintEvent } from "../core/help.ts";
 import { CalibrationSchema, RunResultSchema, type Calibration, type RunResult } from "../core/result.ts";
 
 /** Storage seam: phase 4 can swap this for a database without touching the core. */
@@ -8,6 +9,9 @@ export interface ResultStore {
   listRuns(exerciseId?: string): Promise<RunResult[]>;
   saveCalibration(calibration: Calibration): Promise<string>;
   getCalibration(exerciseId: string): Promise<Calibration | null>;
+  /** Records a hint you looked at (`results/hints/`). Append-only, like runs. */
+  saveHint(event: HintEvent): Promise<string>;
+  listHints(exerciseId?: string): Promise<HintEvent[]>;
 }
 
 export class JsonResultStore implements ResultStore {
@@ -28,25 +32,22 @@ export class JsonResultStore implements ResultStore {
   }
 
   async listRuns(exerciseId?: string): Promise<RunResult[]> {
-    let names: string[];
-    try {
-      names = await readdir(this.root);
-    } catch {
-      return [];
-    }
-    const runs: RunResult[] = [];
-    for (const name of names.filter((n) => n.endsWith(".json")).sort()) {
-      let json: unknown;
-      try {
-        json = JSON.parse(await readFile(path.join(this.root, name), "utf8"));
-      } catch {
-        // A truncated or hand-edited file is skipped like one with the wrong schema.
-        continue;
-      }
-      const parsed = RunResultSchema.safeParse(json);
-      if (parsed.success && (!exerciseId || parsed.data.exerciseId === exerciseId)) runs.push(parsed.data);
-    }
-    return runs;
+    const runs = await readAll(this.root, RunResultSchema);
+    return runs.filter((r) => !exerciseId || r.exerciseId === exerciseId);
+  }
+
+  async saveHint(event: HintEvent): Promise<string> {
+    const valid = HintEventSchema.parse(event);
+    const dir = path.join(this.root, "hints");
+    await mkdir(dir, { recursive: true });
+    const file = path.join(dir, `${valid.at.replace(/[:.]/g, "-")}_${valid.exerciseId}_${valid.level}.json`);
+    await writeFile(file, JSON.stringify(valid, null, 2) + "\n", { flag: "wx" });
+    return file;
+  }
+
+  async listHints(exerciseId?: string): Promise<HintEvent[]> {
+    const hints = await readAll(path.join(this.root, "hints"), HintEventSchema);
+    return hints.filter((h) => !exerciseId || h.exerciseId === exerciseId);
   }
 
   async saveCalibration(calibration: Calibration): Promise<string> {
@@ -66,4 +67,27 @@ export class JsonResultStore implements ResultStore {
       return null;
     }
   }
+}
+
+/** Every valid `*.json` in `dir`, in file name (= time) order. */
+async function readAll<T>(dir: string, schema: { safeParse(v: unknown): { success: true; data: T } | { success: false } }): Promise<T[]> {
+  let names: string[];
+  try {
+    names = await readdir(dir);
+  } catch {
+    return [];
+  }
+  const out: T[] = [];
+  for (const name of names.filter((n) => n.endsWith(".json")).sort()) {
+    let json: unknown;
+    try {
+      json = JSON.parse(await readFile(path.join(dir, name), "utf8"));
+    } catch {
+      // A truncated or hand-edited file is skipped like one with the wrong schema.
+      continue;
+    }
+    const parsed = schema.safeParse(json);
+    if (parsed.success) out.push(parsed.data);
+  }
+  return out;
 }

@@ -1,3 +1,4 @@
+import { HELP_LABELS, helpLevels } from "../core/help.ts";
 import { mostMissed, skillProgress, sparkline, weakestSkills } from "../core/progress.ts";
 import type { RunResult } from "../core/result.ts";
 import { buildSchedule, isDue, relativeDays } from "../core/schedule.ts";
@@ -16,15 +17,18 @@ export async function statsCommand(ctx: CliContext, id?: string): Promise<number
     return 0;
   }
   const at = now(ctx);
-  const schedule = buildSchedule(runs);
+  const hints = await ctx.store.listHints(id);
+  const schedule = buildSchedule(runs, hints);
   if (id) {
-    const rows = [["DATE", "SCORE", "CHECKS", "JUDGE", "TOKENS", "COST"]];
-    for (const r of runs) {
+    const rows = [["DATE", "SCORE", "CHECKS", "JUDGE", "HELP", "TOKENS", "COST"]];
+    const help = helpLevels(runs, hints);
+    for (const [i, r] of runs.entries()) {
       rows.push([
         r.startedAt.slice(0, 16).replace("T", " "),
         String(r.score),
         `${Math.round(r.checkScore * 100)}%`,
         r.judgeScore === null ? "-" : `${Math.round(r.judgeScore * 100)}%`,
+        HELP_LABELS[help[i] ?? 0],
         String(r.tokens.input + r.tokens.output + r.tokens.cacheRead + r.tokens.cacheWrite),
         `$${r.costUsd.toFixed(4)}`,
       ]);
@@ -35,7 +39,7 @@ export async function statsCommand(ctx: CliContext, id?: string): Promise<number
     if (entry) ctx.out(`Review: box ${entry.box}, due ${relativeDays(entry.dueAt, at)}`);
     return 0;
   }
-  const progress = skillProgress(runs);
+  const progress = skillProgress(runs, hints);
   const rows = [["SKILL", "RUNS", "MASTERY", "TREND", "RECENT", "DUE", "COST", "MOST MISSED"]];
   for (const p of progress) {
     rows.push([
@@ -50,7 +54,7 @@ export async function statsCommand(ctx: CliContext, id?: string): Promise<number
     ]);
   }
   ctx.out(table(rows));
-  ctx.out("\nMASTERY: mean of the latest score on each exercise you have run. TREND: last runs against the ones before.");
+  ctx.out("\nMASTERY: mean of the latest score on each exercise you have run; a run within a day of viewing the solution doesn't count. TREND: last runs against the ones before.");
   const weakest = weakestSkills(progress).filter((p) => p.mastery < 100);
   if (weakest.length > 0) ctx.out(`Weakest: ${weakest.map((p) => `${p.skill} (${p.mastery})`).join(", ")}. See \`dojo review\`.`);
   ctx.out(`Total: ${runs.length} runs, $${runs.reduce((s, r) => s + r.costUsd, 0).toFixed(4)}`);

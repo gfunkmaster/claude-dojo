@@ -1,4 +1,5 @@
 import { SKILLS, type Skill } from "./exercise.ts";
+import { isAssisted, type HintEvent } from "./help.ts";
 import type { RunResult } from "./result.ts";
 
 export interface SkillProgress {
@@ -6,7 +7,10 @@ export interface SkillProgress {
   runs: number;
   /** Exercises of this skill you have run at least once. */
   exercises: number;
-  /** Mean of each of those exercises' latest score, 0..100. Where you stand now, not your best day. */
+  /**
+   * Mean of each of those exercises' latest score, 0..100. Where you stand now, not your best day.
+   * A run graded right after viewing the solution doesn't count: an exercise with only those counts as 0.
+   */
   mastery: number;
   /** Up to the last 8 scores, oldest first. */
   recent: number[];
@@ -29,14 +33,17 @@ export function mostMissed(runs: RunResult[], n = 3): { id: string; count: numbe
 }
 
 /** One entry per skill you have run, in the order of SKILLS. */
-export function skillProgress(runs: RunResult[]): SkillProgress[] {
+export function skillProgress(runs: RunResult[], hints: HintEvent[] = []): SkillProgress[] {
   const sorted = [...runs].sort((a, b) => a.startedAt.localeCompare(b.startedAt));
   const progress: SkillProgress[] = [];
   for (const skill of SKILLS) {
     const forSkill = sorted.filter((r) => r.skill === skill);
     if (forSkill.length === 0) continue;
     const latest = new Map<string, number>();
-    for (const r of forSkill) latest.set(r.exerciseId, r.score);
+    for (const r of forSkill) {
+      if (!isAssisted(r, hints)) latest.set(r.exerciseId, r.score);
+      else if (!latest.has(r.exerciseId)) latest.set(r.exerciseId, 0);
+    }
     const scores = forSkill.map((r) => r.score);
     const k = Math.min(3, Math.floor(scores.length / 2));
     progress.push({
