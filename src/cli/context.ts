@@ -13,12 +13,16 @@ export interface CliContext {
   /** Your personal exercises from `dojo analyze --generate`. Never committed. */
   generatedDir: string;
   workspaceDir: string;
+  /** Snapshot of the review schedule, rebuilt from the results after every graded run. */
+  scheduleFile: string;
   store: ResultStore;
   backend: Backend;
   /** Created lazily so `list` and `stats` work without an API key. */
   llm: () => LlmClient;
   claude: () => ClaudeCli;
   out: (line: string) => void;
+  /** The clock the schedule is read against. Tests pin it. */
+  now?: () => Date;
 }
 
 export function defaultContext(): CliContext {
@@ -31,6 +35,7 @@ export function defaultContext(): CliContext {
     exercisesDir: process.env.DOJO_EXERCISES ?? path.join(REPO_ROOT, "exercises"),
     generatedDir: path.join(home, "generated"),
     workspaceDir: path.join(home, "workspace"),
+    scheduleFile: path.join(home, "schedule.json"),
     store: new JsonResultStore(path.join(home, "results")),
     backend,
     llm: () => (llm ??= backend === "api" ? new AnthropicLlmClient() : new ClaudeCliLlmClient(getClaude())),
@@ -42,6 +47,10 @@ export function defaultContext(): CliContext {
 /** The bundled path plus your generated exercises. */
 export function exerciseRoots(ctx: CliContext): string[] {
   return [ctx.exercisesDir, ctx.generatedDir];
+}
+
+export function now(ctx: CliContext): Date {
+  return ctx.now?.() ?? new Date();
 }
 
 export function table(rows: string[][]): string {

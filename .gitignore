@@ -6,8 +6,5 @@ generated/
 .env
 # Exercise fixtures ship fake secrets on purpose.
 !exercises/**/fixture/.env
-
-# Next.js build output of the web UI.
-web/.next/
-web/next-env.d.ts
-web/tsconfig.tsbuildinfo
+# Review schedule, derived from results/.
+/schedule.json

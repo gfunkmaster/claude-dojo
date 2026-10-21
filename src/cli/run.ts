@@ -1,15 +1,19 @@
-import { cp, stat } from "node:fs/promises";
+import { cp, rename, stat } from "node:fs/promises";
 import path from "node:path";
 import { loadExercises, type Exercise } from "../core/exercise.ts";
 import { gradeSolution } from "../core/grade.ts";
 import type { RunResult } from "../core/result.ts";
+import { relativeDays } from "../core/schedule.ts";
 import { calibrate } from "../judge/calibrate.ts";
 import { canRun } from "../llm/backend.ts";
-import { exerciseRoots, type CliContext } from "./context.ts";
+import { exerciseRoots, now, type CliContext } from "./context.ts";
+import { refreshSchedule } from "./review.ts";
 
 export interface RunOptions {
   calibrate?: boolean;
   keep?: boolean;
+  /** Move the existing workspace aside and start over from the starter (for reviews). */
+  fresh?: boolean;
 }
 
 async function exists(p: string): Promise<boolean> {
@@ -33,6 +37,12 @@ export async function runCommand(ctx: CliContext, id: string, opts: RunOptions =
     return 1;
   }
   const solutionDir = path.join(ctx.workspaceDir, exercise.id);
+  if (opts.fresh && !opts.calibrate && (await exists(solutionDir))) {
+    // Never delete a solution: it may be the only copy of the user's work.
+    const aside = `${solutionDir}.old-${now(ctx).toISOString().replace(/[:.]/g, "-")}`;
+    await rename(solutionDir, aside);
+    ctx.out(`Moved your previous solution to ${aside}`);
+  }
   const firstRun = !opts.calibrate && !(await exists(solutionDir));
   if (!firstRun && !canRun(ctx.backend, exercise)) {
     ctx.out(`${exercise.id} is a ${exercise.type} exercise: it sends raw Messages API requests, so it needs API credits.`);
@@ -67,6 +77,8 @@ export async function runCommand(ctx: CliContext, id: string, opts: RunOptions =
   const file = await ctx.store.saveRun(result);
   printResult(ctx, result);
   ctx.out(`Saved: ${file}`);
+  const entry = (await refreshSchedule(ctx)).find((e) => e.exerciseId === exercise.id);
+  if (entry) ctx.out(`Next review: ${relativeDays(entry.dueAt, now(ctx))} (box ${entry.box})`);
   return result.passed ? 0 : 1;
 }
 

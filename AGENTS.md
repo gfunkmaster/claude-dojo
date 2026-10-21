@@ -14,6 +14,7 @@ Claude Dojo: a CLI that grades exercises about using Claude well. TypeScript, st
 - `LlmClient` has two backends, picked by `DOJO_BACKEND` (`src/llm/backend.ts`): `AnthropicLlmClient` (API) and `ClaudeCliLlmClient` (subscription, via `ClaudeCli.ask`). `tools` and `request` exercises only run on the API.
 - `src/core`, `src/runners`, `src/judge`, `src/store` and `src/analyze` must not import from `src/cli`. The web UI (`web/`) imports them directly, through `src/dashboard`. It is read-only: it never writes results or calls a model.
 - Results are append-only JSON validated by `src/core/result.ts`. Changing that schema means bumping `schemaVersion`.
+- The review schedule (`src/core/schedule.ts`) is derived from the results by a pure function. Don't give it state of its own; `schedule.json` is only a snapshot for other readers. The on-disk shapes are documented in the README ("Data on disk"), which the web UI relies on: keep them in sync.
 - No new dependencies without asking.
 - Transcripts (`src/analyze`) are the user's private data. Only redacted excerpts from `detectPatterns` may leave the module, and only to `claude -p` through `ClaudeCli`. Never commit a real transcript or anything in `generated/`; tests use the synthetic fixtures in `test/fixtures/transcripts/`.
 
