@@ -22,6 +22,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             <a className="brand" href="/">Claude Dojo</a>
             <a href="/">Overview</a>
             <a href="/exercises">Exercises</a>
+            <a href="/review">Review</a>
+            <a href="/playbooks">Playbooks</a>
             <span className="backend">{backendLabel()}</span>
           </nav>
         </header>

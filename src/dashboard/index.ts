@@ -3,7 +3,7 @@ import { bestScores, curriculumOrder, levelName, nextExercise } from "../core/cu
 import { loadExercises, SKILLS, type Exercise, type Skill } from "../core/exercise.ts";
 import { mostMissed } from "../core/progress.ts";
 import type { RunResult } from "../core/result.ts";
-import { buildSchedule, dueEntries, reviewCommandFor, type ScheduleEntry } from "../core/schedule.ts";
+import { buildSchedule, dueEntries, reviewCommandFor, upcomingEntries, type ScheduleEntry } from "../core/schedule.ts";
 import { PASS_SCORE } from "../core/scoring.ts";
 import { canRun, resolveBackend, type Backend } from "../llm/backend.ts";
 import { JsonResultStore, type ResultStore } from "../store/json-store.ts";
@@ -11,18 +11,24 @@ import { JsonResultStore, type ResultStore } from "../store/json-store.ts";
 /**
  * The read model behind the web UI: everything it shows, built from the same
  * files the CLI writes. Read-only, and tolerant of files that don't exist yet
- * (no runs, no generated exercises).
+ * (no runs, no generated exercises). Editing and grading are in `workspace.ts`
+ * and `runner.ts`.
  */
 
 export interface DashboardSource {
+  /** Where `src/cli/bin.ts` and `playbooks/` live. */
+  repoRoot: string;
   /** Bundled exercises first, then your generated ones. */
   exercisesDir: string;
   generatedDir: string;
   store: ResultStore;
+  /** `<DOJO_HOME>/workspace`: one folder per started exercise, edited in the UI and graded by `dojo run`. */
+  workspaceDir: string;
+  playbooksDir: string;
   backend: Backend;
 }
 
-/** Same layout as the CLI: DOJO_HOME (default: the repo) holds results/ and generated/. */
+/** Same layout as the CLI: DOJO_HOME (default: the repo) holds results/, generated/ and workspace/. */
 export function defaultSource(repoRoot: string, env: NodeJS.ProcessEnv = process.env): DashboardSource {
   const home = env.DOJO_HOME ?? repoRoot;
   let backend: Backend;
@@ -33,9 +39,12 @@ export function defaultSource(repoRoot: string, env: NodeJS.ProcessEnv = process
     backend = "claude-cli";
   }
   return {
+    repoRoot,
     exercisesDir: env.DOJO_EXERCISES ?? path.join(repoRoot, "exercises"),
     generatedDir: path.join(home, "generated"),
     store: new JsonResultStore(path.join(home, "results")),
+    workspaceDir: path.join(home, "workspace"),
+    playbooksDir: path.join(repoRoot, "playbooks"),
     backend,
   };
 }
@@ -250,4 +259,50 @@ export async function loadRun(src: DashboardSource, id: string): Promise<RunDeta
     title: exercises.find((e) => e.id === run.exerciseId)?.title ?? run.exerciseId,
     totalTokens: t.input + t.output + t.cacheRead + t.cacheWrite,
   };
+}
+
+export interface ReviewOverview {
+  due: DueReview[];
+  /** Not due yet, soonest first. */
+  upcoming: DueReview[];
+  /** Due, but they need API credits on this backend. */
+  skipped: DueReview[];
+}
+
+/** What `dojo review` shows, built from the runs the same way. */
+export async function loadReview(src: DashboardSource, now: Date = new Date()): Promise<ReviewOverview> {
+  const { exercises } = await loadExercises([src.exercisesDir, src.generatedDir]);
+  const byId = new Map(exercises.map((e) => [e.id, e]));
+  const entries = buildSchedule(await src.store.listRuns()).filter((e) => byId.has(e.exerciseId));
+  const review = (entry: ScheduleEntry): DueReview => ({
+    entry,
+    title: byId.get(entry.exerciseId)?.title ?? entry.exerciseId,
+    command: reviewCommandFor(entry),
+  });
+  const runnable = (e: ScheduleEntry) => {
+    const ex = byId.get(e.exerciseId);
+    return ex !== undefined && canRun(src.backend, ex);
+  };
+  const due = dueEntries(entries, now);
+  return {
+    due: due.filter(runnable).map(review),
+    upcoming: upcomingEntries(entries, now).filter(runnable).map(review),
+    skipped: due.filter((e) => !runnable(e)).map(review),
+  };
+}
+
+export interface Recommendation {
+  id: string;
+  title: string;
+  /** A due review, or the next new exercise on the path. */
+  kind: "review" | "new";
+  /** A passed review starts over from the starter (`--fresh`). */
+  fresh: boolean;
+}
+
+/** What `dojo next` would pick: a due review first, else the next new exercise. */
+export function recommendation(d: Dashboard): Recommendation | null {
+  const review = d.due[0];
+  if (review) return { id: review.entry.exerciseId, title: review.title, kind: "review", fresh: review.entry.lastPassed };
+  return d.next ? { id: d.next.id, title: d.next.title, kind: "new", fresh: false } : null;
 }

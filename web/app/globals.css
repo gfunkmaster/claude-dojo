@@ -88,3 +88,36 @@ td.num, th.num { text-align: right; }
 .task { white-space: pre-wrap; font: inherit; margin: 0; }
 .warnings { border-color: var(--warn); }
 ul.plain { list-style: none; padding: 0; margin: 0; }
+button, a.button {
+  font: inherit; font-size: 14px; color: var(--text); background: var(--surface);
+  border: 1px solid var(--border); border-radius: 6px; padding: 5px 12px; cursor: pointer;
+}
+button:hover:not(:disabled), a.button:hover { border-color: var(--accent); text-decoration: none; }
+button:disabled { opacity: .5; cursor: default; }
+button.primary, a.button.primary { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+button.copy { font-size: 12px; padding: 1px 8px; }
+.command { white-space: nowrap; }
+.file-tabs { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-bottom: 8px; }
+.file-tabs .tab { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 13px; }
+.file-tabs .tab.active { border-color: var(--accent); color: var(--accent); }
+.new-file { display: flex; gap: 4px; margin-left: auto; }
+.new-file input, .editor {
+  font: 13px/1.5 ui-monospace, "SF Mono", Menlo, monospace; color: var(--text); background: var(--bg);
+  border: 1px solid var(--border); border-radius: 6px; padding: 4px 8px;
+}
+.editor { display: block; width: 100%; min-height: 360px; padding: 10px; resize: vertical; tab-size: 2; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.log-title { margin-top: 16px; }
+.log {
+  background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px;
+  max-height: 420px; overflow: auto; white-space: pre-wrap; margin: 0;
+}
+.error { color: var(--fail); }
+.next { margin-top: 24px; border-color: var(--accent); }
+details { margin-top: 12px; }
+summary { cursor: pointer; color: var(--muted); }
+.playbooks li { margin-bottom: 12px; }
+.prose { margin: 16px 0; }
+.code-block { position: relative; margin: 12px 0; }
+.code-block .copy { position: absolute; top: 8px; right: 8px; }
+.code-block pre { margin: 0; white-space: pre-wrap; padding-right: 64px; }
