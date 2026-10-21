@@ -98,6 +98,10 @@ export const FrontmatterSchema = z
         variants: z.array(z.object({ file: z.string(), shouldPass: z.boolean() })).min(2),
       })
       .optional(),
+    /** Hand-written nudges for `dojo hint` level 2. Without them, hints come from the rubric and your last run. */
+    hints: z.array(z.string()).optional(),
+    /** Why the good reference works, shown with the solution (`dojo hint --solution`). */
+    explanation: z.string().optional(),
     /** The ticket routine (`dojo playbook <name>`) this exercise trains. */
     playbook: z.enum(PLAYBOOKS).optional(),
     /** Phase 2: where a generated exercise came from (e.g. a transcript path). */

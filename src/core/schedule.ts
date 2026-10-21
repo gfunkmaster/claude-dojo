@@ -1,10 +1,12 @@
 import { z } from "zod";
 import { SKILLS } from "./exercise.ts";
+import { isAssisted, type HintEvent } from "./help.ts";
 import type { RunResult } from "./result.ts";
 
 /**
  * Leitner boxes: how many days until an exercise comes back. A fail drops it to box 1,
- * a solid pass moves it up one box, a shaky pass keeps it where it is.
+ * a solid pass moves it up one box, a shaky pass keeps it where it is. So does a pass
+ * graded within a day of viewing the solution (`isAssisted`): it proves you can copy, not recall.
  */
 export const BOX_DAYS = [1, 3, 7, 14, 30] as const;
 /** A pass below this is shaky: it counts as passed but doesn't move the exercise up. */
@@ -36,8 +38,8 @@ export const ScheduleSchema = z.object({
 });
 export type Schedule = z.infer<typeof ScheduleSchema>;
 
-/** Replays every run in order. Same runs in, same schedule out: there is no hidden state. */
-export function buildSchedule(runs: RunResult[]): ScheduleEntry[] {
+/** Replays every run in order. Same runs and hints in, same schedule out: there is no hidden state. */
+export function buildSchedule(runs: RunResult[], hints: HintEvent[] = []): ScheduleEntry[] {
   const byExercise = new Map<string, RunResult[]>();
   for (const r of [...runs].sort((a, b) => a.startedAt.localeCompare(b.startedAt))) {
     byExercise.set(r.exerciseId, [...(byExercise.get(r.exerciseId) ?? []), r]);
@@ -53,7 +55,8 @@ export function buildSchedule(runs: RunResult[]): ScheduleEntry[] {
         fails++;
         box = 1;
       } else if (box === 0 || at >= due) {
-        box = r.score >= SOLID_SCORE ? Math.min(Math.max(box, 1) + 1, BOX_DAYS.length) : Math.max(box, 1);
+        const solid = r.score >= SOLID_SCORE && !isAssisted(r, hints);
+        box = solid ? Math.min(Math.max(box, 1) + 1, BOX_DAYS.length) : Math.max(box, 1);
       } else {
         // Passing again before it is due proves nothing new: keep box and due date.
         continue;

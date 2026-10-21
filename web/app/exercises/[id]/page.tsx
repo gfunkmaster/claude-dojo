@@ -1,8 +1,10 @@
 import { notFound } from "next/navigation";
+import { HELP_LABELS } from "../../../../src/core/help.ts";
 import { loadDashboard, loadExerciseDetail, loadRun, recommendation } from "../../../../src/dashboard/index.ts";
 import { listWorkspace, solutionDir } from "../../../../src/dashboard/workspace.ts";
 import { formatDate, source } from "../../../lib/data.ts";
 import { Command, Workbench } from "../../client.tsx";
+import { HintPanel } from "../../hints.tsx";
 import { CalibrationBadge, PassBadge, Score, StateBadge } from "../../components.tsx";
 import { RunView } from "../../run-view.tsx";
 
@@ -13,7 +15,7 @@ export default async function ExercisePage({ params }: { params: Promise<{ id: s
   const src = source();
   const detail = await loadExerciseDetail(src, id);
   if (!detail) notFound();
-  const { exercise, row, runs } = detail;
+  const { exercise, row, runs, hints } = detail;
   const dashboard = await loadDashboard(src);
   const listing = await listWorkspace(solutionDir(src.workspaceDir, exercise), exercise.solution);
   const latest = runs[0] ? await loadRun(src, runs[0].id) : null;
@@ -72,6 +74,14 @@ export default async function ExercisePage({ params }: { params: Promise<{ id: s
         suggestFresh={review?.entry.lastPassed ?? false}
       />
 
+      <h2>Stuck?</h2>
+      <p className="muted">
+        Hints come in steps: first what to focus on, then a stronger nudge, and last the solution with why it works. In a terminal:{" "}
+        <Command text={`dojo hint ${exercise.id}`} />
+      </p>
+      {/* A new run remounts it: the hints read your latest run. */}
+      <HintPanel key={runs.length} exerciseId={exercise.id} next={hints.next} solutionUnlocked={hints.solutionUnlocked} />
+
       {latest && (
         <>
           <h2>
@@ -106,6 +116,7 @@ export default async function ExercisePage({ params }: { params: Promise<{ id: s
                 <th>Date</th>
                 <th className="num">Score</th>
                 <th>Result</th>
+                <th>Help</th>
               </tr>
             </thead>
             <tbody>
@@ -118,6 +129,7 @@ export default async function ExercisePage({ params }: { params: Promise<{ id: s
                   <td>
                     <PassBadge passed={r.passed} />
                   </td>
+                  <td className="muted">{HELP_LABELS[r.help]}</td>
                 </tr>
               ))}
             </tbody>

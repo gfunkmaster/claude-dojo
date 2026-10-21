@@ -1,6 +1,7 @@
 import path from "node:path";
 import { bestScores, curriculumOrder, levelName, nextExercise } from "../core/curriculum.ts";
 import { loadExercises, SKILLS, type Exercise, type Skill } from "../core/exercise.ts";
+import { helpLevels, nextHintLevel, solutionUnlocked, type HintEvent, type HintLevel } from "../core/help.ts";
 import { mostMissed } from "../core/progress.ts";
 import type { RunResult } from "../core/result.ts";
 import { buildSchedule, dueEntries, reviewCommandFor, upcomingEntries, type ScheduleEntry } from "../core/schedule.ts";
@@ -98,6 +99,8 @@ export interface RunRow {
   startedAt: string;
   score: number;
   passed: boolean;
+  /** The most help you had before this run: 0 none, 1-2 hints, 3 the solution (then the pass doesn't count). */
+  help: 0 | HintLevel;
 }
 
 export interface DueReview {
@@ -127,6 +130,21 @@ export function runId(run: Pick<RunResult, "startedAt" | "exerciseId">): string 
   return `${run.startedAt.replace(/[:.]/g, "-")}_${run.exerciseId}`;
 }
 
+/** helpLevel of every run, by run id. */
+function helpByRun(runs: RunResult[], hints: HintEvent[]): Map<string, 0 | HintLevel> {
+  const byExercise = new Map<string, RunResult[]>();
+  for (const r of runs) byExercise.set(r.exerciseId, [...(byExercise.get(r.exerciseId) ?? []), r]);
+  const out = new Map<string, 0 | HintLevel>();
+  for (const own of byExercise.values()) {
+    const sorted = [...own].sort((a, b) => a.startedAt.localeCompare(b.startedAt));
+    helpLevels(sorted, hints).forEach((level, i) => {
+      const r = sorted[i];
+      if (r) out.set(runId(r), level);
+    });
+  }
+  return out;
+}
+
 function isInside(dir: string, root: string): boolean {
   const rel = path.relative(root, dir);
   return rel !== "" && !rel.startsWith("..") && !path.isAbsolute(rel);
@@ -135,6 +153,8 @@ function isInside(dir: string, root: string): boolean {
 export async function loadDashboard(src: DashboardSource, now: Date = new Date()): Promise<Dashboard> {
   const { exercises, errors } = await loadExercises([src.exercisesDir, src.generatedDir]);
   const runs = await src.store.listRuns();
+  const hints = await src.store.listHints();
+  const help = helpByRun(runs, hints);
   const best = bestScores(runs);
   const titles = new Map(exercises.map((e) => [e.id, e.title]));
 
@@ -179,7 +199,7 @@ export async function loadDashboard(src: DashboardSource, now: Date = new Date()
   const next = nextExercise(exercises.filter((e) => canRun(src.backend, e)), runs);
   // Built from the runs like `dojo review` does, so it is never stale. Deleted and API-only exercises drop out.
   const byId = new Map(rows.map((r) => [r.id, r]));
-  const due = dueEntries(buildSchedule(runs), now).flatMap((entry) => {
+  const due = dueEntries(buildSchedule(runs, hints), now).flatMap((entry) => {
     const row = byId.get(entry.exerciseId);
     return row && !row.needsApi ? [{ entry, title: row.title, command: reviewCommandFor(entry) }] : [];
   });
@@ -200,6 +220,7 @@ export async function loadDashboard(src: DashboardSource, now: Date = new Date()
         startedAt: r.startedAt,
         score: r.score,
         passed: r.passed,
+        help: help.get(runId(r)) ?? 0,
       })),
     due,
     totals: {
@@ -215,7 +236,14 @@ export async function loadDashboard(src: DashboardSource, now: Date = new Date()
 export interface ExerciseDetail {
   exercise: Exercise;
   row: ExerciseRow;
+  /** Newest first. */
   runs: RunRow[];
+  /** What the hint buttons offer. The hints themselves are fetched when you ask, never put in the page. */
+  hints: {
+    /** The level `dojo hint` gives next; 3 means only the solution is left. */
+    next: HintLevel;
+    solutionUnlocked: boolean;
+  };
 }
 
 export async function loadExerciseDetail(src: DashboardSource, id: string): Promise<ExerciseDetail | null> {
@@ -225,7 +253,10 @@ export async function loadExerciseDetail(src: DashboardSource, id: string): Prom
   const { exercises } = await loadExercises([src.exercisesDir, src.generatedDir]);
   const exercise = exercises.find((e) => e.id === id);
   if (!exercise) return null;
-  const runs = (await src.store.listRuns(id)).reverse().map((r) => ({
+  const all = await src.store.listRuns(id);
+  const hints = await src.store.listHints(id);
+  const help = helpByRun(all, hints);
+  const runs = [...all].reverse().map((r) => ({
     id: runId(r),
     exerciseId: r.exerciseId,
     title: exercise.title,
@@ -233,8 +264,9 @@ export async function loadExerciseDetail(src: DashboardSource, id: string): Prom
     startedAt: r.startedAt,
     score: r.score,
     passed: r.passed,
+    help: help.get(runId(r)) ?? 0,
   }));
-  return { exercise, row, runs };
+  return { exercise, row, runs, hints: { next: nextHintLevel(id, all, hints), solutionUnlocked: solutionUnlocked(id, all) } };
 }
 
 export interface RunDetail {
@@ -273,7 +305,7 @@ export interface ReviewOverview {
 export async function loadReview(src: DashboardSource, now: Date = new Date()): Promise<ReviewOverview> {
   const { exercises } = await loadExercises([src.exercisesDir, src.generatedDir]);
   const byId = new Map(exercises.map((e) => [e.id, e]));
-  const entries = buildSchedule(await src.store.listRuns()).filter((e) => byId.has(e.exerciseId));
+  const entries = buildSchedule(await src.store.listRuns(), await src.store.listHints()).filter((e) => byId.has(e.exerciseId));
   const review = (entry: ScheduleEntry): DueReview => ({
     entry,
     title: byId.get(entry.exerciseId)?.title ?? entry.exerciseId,

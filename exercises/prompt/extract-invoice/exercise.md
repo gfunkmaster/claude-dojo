@@ -50,6 +50,16 @@ criteria:
 references:
   - { label: good, dir: refs/good, expect: [75, 100] }
   - { label: bad, dir: refs/bad, expect: [0, 50] }
+hints:
+  - Skriv ut JSON-formen ordagrant i prompten, med typ för varje fält. En liten modell följer ett exempel bättre än en beskrivning.
+  - Gå igenom fälten ett i taget och säg vad som gäller när värdet saknas. "null, gissa aldrig" behöver stå uttryckligen.
+  - Fall 4 är inte en faktura. Vad ska modellen svara då, exakt?
+explanation: |
+  Prompten visar exakt den JSON som ska tillbaka och säger att inget annat får stå i svaret, så modellen har inget att improvisera kring.
+
+  Varje fält får en egen rad med format och regel för när det saknas. Därför blir saknad moms null i stället för ett uträknat belopp.
+
+  Fallet "inte en faktura" har ett eget, exakt svar. Den dåliga referensen saknar både det och null-regeln, och gissar därför.
 ---
 
 Skriv en systemprompt i `system.md` som gör om en faktura i fritext till JSON.

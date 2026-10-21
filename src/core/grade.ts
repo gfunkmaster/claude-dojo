@@ -1,10 +1,11 @@
 import { createHash } from "node:crypto";
-import { readdir, readFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { judge, type JudgeResult } from "../judge/judge.ts";
 import { runnerFor } from "../runners/index.ts";
 import type { RunnerDeps } from "../runners/types.ts";
 import type { Exercise } from "./exercise.ts";
+import { listFiles } from "./files.ts";
 import { addUsage } from "./pricing.ts";
 import type { RunResult } from "./result.ts";
 import { checkScore, finalScore, JUDGE_GATE, PASS_SCORE, shouldJudge } from "./scoring.ts";
@@ -21,17 +22,6 @@ export async function readSolution(dir: string): Promise<string> {
     parts.push(`=== ${rel} ===\n${body}`);
   }
   return parts.join("\n\n");
-}
-
-async function listFiles(dir: string, prefix = ""): Promise<string[]> {
-  const entries = await readdir(path.join(dir, prefix), { withFileTypes: true });
-  const out: string[] = [];
-  for (const e of entries.sort((a, b) => a.name.localeCompare(b.name))) {
-    const rel = path.join(prefix, e.name);
-    if (e.isDirectory()) out.push(...(await listFiles(dir, rel)));
-    else if (e.isFile()) out.push(rel);
-  }
-  return out;
 }
 
 export interface GradeOptions {
