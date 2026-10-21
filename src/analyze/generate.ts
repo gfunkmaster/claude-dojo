@@ -81,6 +81,7 @@ Rules:
 - eval: the solution file holds \`cases:\`; it is run against variants listed under eval.variants.
 - Leave out \`id\` and \`source\`; Dojo sets them.
 - Checks must be deterministic and must separate refs/good from refs/bad. Criteria are for the LLM judge; give each one observable thing to judge.
+- Score = 50% share of checks passed + 50% judge. refs/bad must land below 50, so it has to fail most checks, not just be shorter. In env exercises Claude is capable on its own, so a weak solution file often still gets the task done: add checks that only pass when the habit is in place (file-contains on the solution file itself, a check that a rule was followed, max-turns), and make refs/bad miss the key rule entirely.
 - Write exercise text, criteria and case names in Swedish. Code and code comments in English.
 - Use the excerpts only for inspiration. Never copy secrets, names, company details, paths or code from them; invent neutral example content.
 
