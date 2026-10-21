@@ -8,3 +8,6 @@ generated/
 !exercises/**/fixture/.env
 # Review schedule, derived from results/.
 /schedule.json
+# Next.js (web/)
+web/.next/
+web/next-env.d.ts
