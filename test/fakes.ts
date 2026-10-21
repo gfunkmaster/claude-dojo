@@ -180,7 +180,9 @@ function judgeSummary(system: string, user: string): string {
   const summary = /<summary>([\s\S]*?)<\/summary>/.exec(user)?.[1] ?? "";
   if (!/individual claims|each claim/i.test(system)) return JSON.stringify({ faithful: true, unsupported_claims: [] });
   const unsupported: string[] = [];
-  for (const n of summary.match(/\d[\d ]*/g) ?? []) if (!source.includes(n.trim())) unsupported.push(`${n.trim()} procent`);
+  for (const clause of summary.trim().split(/,\s+|\.\s*/)) {
+    for (const n of clause.match(/\d[\d ]*/g) ?? []) if (!source.includes(n.trim())) unsupported.push(clause);
+  }
   const cause = /tack vare [^,.]+/.exec(summary)?.[0];
   if (cause && !source.includes(cause)) unsupported.push(cause);
   return JSON.stringify({ faithful: unsupported.length === 0, unsupported_claims: unsupported });
@@ -437,6 +439,9 @@ function health(sb: Sandbox): void {
   }
   sb.write("src/routes/index.js", `import health from "./health.js";\nimport users from "./users.js";\n\nexport const routes = [health, users];\n`);
   sb.write("test/routes/health.test.js", `import { test } from "node:test";\nimport assert from "node:assert/strict";\nimport { dispatch } from "../../src/router.js";\n\ntest("GET /health", async () => {\n  const res = await dispatch({ method: "GET", url: "/health" });\n  assert.deepEqual(res.body, { status: "ok" });\n});\n`);
+  if (sb.file("AGENTS.md").includes("CHANGELOG.md")) {
+    sb.write("CHANGELOG.md", sb.file("CHANGELOG.md").replace("# Changelog\n", "# Changelog\n\n## Unreleased\n\n- Add GET /health\n"));
+  }
   sb.bash("npm test");
   sb.bash("npm run lint");
 }
