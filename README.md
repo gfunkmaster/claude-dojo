@@ -20,14 +20,16 @@ Without `npm link`, use `npm run dojo -- <command>`.
 ## Usage
 
 ```sh
-dojo next                      # the next exercise on the path that you have not passed
+dojo next                      # a review that is due, or else the next exercise on the path
+dojo review                    # everything due for repetition, and what you missed last time
 dojo list                      # the whole path, best score, calibration status
 dojo run prompt-extract-invoice
 #   first time: copies the starter to workspace/<id>/ and prints the task
 #   after that: grades what is in workspace/<id>/
 dojo run <id> --calibrate      # grade the reference answers to check the exercise itself
 dojo run <id> --keep           # env exercises: keep the sandbox for debugging
-dojo stats                     # per skill: runs, last and best score, cost, most missed criteria
+dojo run <id> --fresh          # move your old solution aside and start over from the starter
+dojo stats                     # per skill: mastery, trend, due reviews, cost, most missed criteria
 dojo stats <id>                # history for one exercise
 dojo analyze                   # patterns in your own Claude Code sessions (local only)
 dojo analyze --generate        # draft personal exercises from them with your claude -p
@@ -52,7 +54,7 @@ On `claude-cli`:
 - Tokens come from Claude Code's JSON output. The cost Dojo prints and saves is the API list price for those tokens, for comparison; your subscription covers it, within its usage limits.
 - `tools` and `request` exercises need the API, since they are about the request itself (tool definitions, `cache_control`, `max_tokens`, effort). `dojo run` says so, and `dojo next` skips them.
 
-`DOJO_HOME` moves `workspace/`, `results/` and `generated/` somewhere else. `DOJO_JUDGE_MODEL` changes the judge model and `DOJO_ANALYZE_MODEL` the model `dojo analyze --generate` uses (both default to `claude-opus-5-5`).
+`DOJO_HOME` moves `workspace/`, `results/`, `generated/` and `schedule.json` somewhere else. `DOJO_JUDGE_MODEL` changes the judge model and `DOJO_ANALYZE_MODEL` the model `dojo analyze --generate` uses (both default to `claude-opus-5-5`).
 
 ## The path
 
@@ -93,6 +95,33 @@ Generated exercises go to `generated/<id>/` (ids start with `my-`, and `source` 
 
 The transcript format is internal to Claude Code and changes between versions. The parser reads a few stable fields and skips lines it doesn't understand, so a new version can make it miss things but should not make it crash.
 
+## Spaced repetition
+
+Every exercise you have run once is on a review schedule, so the ones you failed come back and the ones you passed come back later to check they stuck. It is a [Leitner system](https://en.wikipedia.org/wiki/Leitner_system) with five boxes:
+
+| Box | Comes back after |
+| --- | --- |
+| 1 | 1 day |
+| 2 | 3 days |
+| 3 | 7 days |
+| 4 | 14 days |
+| 5 | 30 days |
+
+After each graded run:
+
+- **Fail** (under 70): back to box 1, so it is due tomorrow.
+- **Shaky pass** (70 to 84): stays in its box (box 1 if it was new).
+- **Solid pass** (85 or more): up one box. A new exercise you pass solidly starts in box 2.
+- A pass **before** the exercise is due doesn't move it. Fixing a failed exercise the same day is good, but it still comes back tomorrow.
+
+`dojo review` lists what is due, failed ones first and then the most overdue, with the criteria you missed last time. `dojo next` shows a due review before any new exercise. To review a failed exercise, keep working in its workspace. To review one you passed, use `dojo run <id> --fresh`: it renames your old solution to `workspace/<id>.old-<timestamp>/` (nothing is deleted) and gives you the starter again, so you solve it from memory instead of regrading the same files.
+
+`dojo stats` shows, per skill, `MASTERY` (the mean of your latest score on each exercise you have run, so it drops when a review goes badly), `TREND` (the mean of your last runs minus the mean of the runs before them, up to 3 against 3), the last 8 scores as a sparkline, how many reviews are due, and your two weakest skills.
+
+Generated exercises are scheduled like the bundled ones. If you delete one, its runs stay in `results/` but it drops out of the review list. Exercises that need API credits are left out of `dojo review` and `dojo next` on a subscription, with a note.
+
+The schedule is computed from `results/` every time: the same runs always give the same schedule, and there is no state to lose. Deleting a result file changes the schedule; nothing else does.
+
 ## How grading works
 
 1. **Runner.** One per exercise type:
@@ -107,9 +136,89 @@ The transcript format is internal to Claude Code and changes between versions. T
 
 Every exercise ships a known good and a known bad answer. `--calibrate` grades both and fails if either lands outside its expected range. `dojo list` marks an exercise that fails calibration as `UNRELIABLE`.
 
-## Results
+## Data on disk
 
-Each run is written once to `results/<timestamp>_<id>.json` and never changed. A result holds the score, every check, every criterion with the judge's reasoning, `failedCriteria`, tokens (input, output, cache read, cache write), cost in USD, turns, models and a hash of your solution. The schema is in `src/core/result.ts`.
+Everything lives under `DOJO_HOME` (default: the repo), and all of it is in `.gitignore`. The web UI and other tools can read it, or better, import the functions below, which don't depend on `src/cli`.
+
+| Path | What | Written | Schema |
+| --- | --- | --- | --- |
+| `results/<timestamp>_<id>.json` | one graded run | once, never changed | `RunResultSchema` in `src/core/result.ts` |
+| `results/calibration/<id>.json` | the latest calibration of an exercise | replaced on each `--calibrate` | `CalibrationSchema` in `src/core/result.ts` |
+| `schedule.json` | snapshot of the review schedule | rewritten by `dojo run`, `dojo review` and `dojo next` | `ScheduleSchema` in `src/core/schedule.ts` |
+| `workspace/<id>/` | your solution | by you | the exercise's files |
+| `generated/<id>/` | your personal exercises | `dojo analyze --generate` | an exercise folder |
+
+`<timestamp>` is `startedAt` with `:` and `.` replaced by `-`, so the file names sort by time.
+
+**A result** (`schemaVersion: 1`):
+
+```jsonc
+{
+  "schemaVersion": 1,
+  "exerciseId": "prompt-extract-invoice",
+  "skill": "prompting",          // one of the 7 skills
+  "type": "prompt",              // prompt | tools | request | env | eval
+  "startedAt": "2026-10-21T17:00:00.000Z",
+  "durationMs": 8123,
+  "score": 82,                   // 0..100
+  "passed": true,                // score >= 70
+  "checkScore": 1,               // 0..1
+  "judgeScore": 0.64,            // 0..1, null when the judge didn't run
+  "judgeNote": "…",              // optional
+  "cases": [{ "name": "…", "checks": [{ "check": "…", "passed": true, "detail": "" }] }],
+  "criteria": [{ "id": "no-invented-values", "weight": 2, "grade": "partial", "reasoning": "…", "tip": "…" }],
+  "failedCriteria": ["no-invented-values"],   // criteria that were not a pass
+  "summary": "…",
+  "tokens": { "input": 1200, "output": 300, "cacheRead": 0, "cacheWrite": 0 },
+  "costUsd": 0.0123,             // API list price, also on a subscription
+  "turns": 1,
+  "models": ["claude-haiku-5-5", "claude-opus-5-5"],
+  "solutionHash": "…"
+}
+```
+
+**The schedule** (`schemaVersion: 1`). It stores when each exercise is due, not whether it is due, so it doesn't go stale as time passes; compare `dueAt` with the current time. `results/` is the source of truth and `schedule.json` is only a convenience copy, so prefer computing it:
+
+```jsonc
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-10-21T17:00:00.000Z",
+  "entries": [
+    {
+      "exerciseId": "env-permissions",
+      "skill": "env",
+      "box": 1,                  // 1..5
+      "dueAt": "2026-10-22T17:00:00.000Z",
+      "lastRunAt": "2026-10-21T17:00:00.000Z",
+      "lastScore": 35,
+      "lastPassed": false,
+      "missed": ["deny-env"],    // failedCriteria of the last run
+      "runs": 1,
+      "fails": 1
+    }
+  ]
+}
+```
+
+Entries can include exercises that no longer exist (a deleted generated draft); match them against the loaded exercises.
+
+**Functions to import** (no `src/cli` dependencies):
+
+```ts
+import { JsonResultStore } from "./src/store/json-store.ts";
+import { buildSchedule, dueEntries, upcomingEntries } from "./src/core/schedule.ts";
+import { skillProgress, weakestSkills } from "./src/core/progress.ts";
+import { readSchedule } from "./src/store/schedule-file.ts";
+
+const runs = await new JsonResultStore(`${home}/results`).listRuns();
+const schedule = buildSchedule(runs);           // ScheduleEntry[], soonest first
+const due = dueEntries(schedule, new Date());   // failed first, then most overdue
+const skills = skillProgress(runs);             // per skill: runs, mastery, trend, recent, costUsd, mostMissed
+const weakest = weakestSkills(skills, 2);
+const snapshot = await readSchedule(`${home}/schedule.json`);  // Schedule | null
+```
+
+Changing the shape of a result or the schedule means bumping its `schemaVersion`.
 
 ## Safety of env exercises
 
@@ -215,5 +324,5 @@ Project rules for agents and humans are in [AGENTS.md](AGENTS.md).
 ## Roadmap
 
 - Phase 2: done, see [Personal exercises from your sessions](#personal-exercises-from-your-sessions).
-- Phase 3: spaced repetition per skill, built on `failedCriteria` in the saved results.
+- Phase 3: done, see [Spaced repetition](#spaced-repetition).
 - Phase 4: a Next.js web UI that imports `src/core`, `src/runners`, `src/judge` and `src/store` directly.

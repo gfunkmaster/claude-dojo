@@ -6,3 +6,5 @@ generated/
 .env
 # Exercise fixtures ship fake secrets on purpose.
 !exercises/**/fixture/.env
+# Review schedule, derived from results/.
+/schedule.json
