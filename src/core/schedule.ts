@@ -98,6 +98,11 @@ export function toSchedule(entries: ScheduleEntry[], now: Date): Schedule {
   return { schemaVersion: 1, generatedAt: now.toISOString(), entries };
 }
 
+/** How to start a review: a failed exercise continues where you left off, a passed one starts over. */
+export function reviewCommandFor(entry: ScheduleEntry): string {
+  return entry.lastPassed ? `dojo run ${entry.exerciseId} --fresh` : `dojo run ${entry.exerciseId}`;
+}
+
 /** "in 3 days", "today", "2 days ago". */
 export function relativeDays(iso: string, now: Date): string {
   const days = Math.round((Date.parse(iso) - now.getTime()) / DAY_MS);
