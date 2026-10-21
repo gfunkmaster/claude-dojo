@@ -1,0 +1,2 @@
+service: billing
+replicas: 2

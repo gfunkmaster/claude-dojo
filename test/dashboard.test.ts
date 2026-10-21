@@ -45,7 +45,7 @@ async function source(): Promise<DashboardSource & { home: string; store: JsonRe
 test("a fresh home shows the whole path, nothing passed, and the first exercise as next", async () => {
   const src = await source();
   const d = await loadDashboard(src);
-  assert.equal(d.exercises.length, 21);
+  assert.equal(d.exercises.length, 24);
   assert.deepEqual(
     d.exercises.map((e) => e.position),
     d.exercises.map((_, i) => i + 1),
@@ -53,7 +53,8 @@ test("a fresh home shows the whole path, nothing passed, and the first exercise 
   assert.ok(d.exercises.every((e) => e.state === "new" && e.best === null && e.calibration === "not-yet"));
   assert.equal(d.next?.id, "prompt-extract-invoice");
   assert.equal(d.skills.length, 7);
-  assert.ok(d.skills.every((s) => s.runs === 0 && s.trend.length === 0 && s.total === 3));
+  assert.ok(d.skills.every((s) => s.runs === 0 && s.trend.length === 0 && s.total >= 3));
+  assert.ok(d.skills.every((s) => s.total === d.exercises.filter((e) => e.skill === s.skill).length));
   assert.deepEqual(d.recentRuns, []);
   assert.equal(d.schedule, null);
   assert.deepEqual(d.due, []);
@@ -110,7 +111,7 @@ test("generated exercises are listed as your own", async () => {
   const md = path.join(src.generatedDir, "my-invoice/exercise.md");
   await writeFile(md, (await readFile(md, "utf8")).replace("id: prompt-extract-invoice", "id: my-invoice"));
   const d = await loadDashboard(src);
-  assert.equal(d.exercises.length, 22);
+  assert.equal(d.exercises.length, 25);
   assert.equal(d.exercises.find((e) => e.id === "my-invoice")?.generated, true);
   assert.equal(d.exercises.find((e) => e.id === "prompt-extract-invoice")?.generated, false);
 });

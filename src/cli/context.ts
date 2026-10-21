@@ -13,6 +13,8 @@ export interface CliContext {
   /** Your personal exercises from `dojo analyze --generate`. Never committed. */
   generatedDir: string;
   workspaceDir: string;
+  /** Ticket routines printed by `dojo playbook`. */
+  playbooksDir: string;
   /** Snapshot of the review schedule, rebuilt from the results after every graded run. */
   scheduleFile: string;
   store: ResultStore;
@@ -35,6 +37,7 @@ export function defaultContext(): CliContext {
     exercisesDir: process.env.DOJO_EXERCISES ?? path.join(REPO_ROOT, "exercises"),
     generatedDir: path.join(home, "generated"),
     workspaceDir: path.join(home, "workspace"),
+    playbooksDir: path.join(REPO_ROOT, "playbooks"),
     scheduleFile: path.join(home, "schedule.json"),
     store: new JsonResultStore(path.join(home, "results")),
     backend,

@@ -98,7 +98,7 @@ test("unknown commands and exercises fail with a message", async () => {
 test("next walks the path from beginner to elite", async () => {
   const ctx = await testContext();
   assert.equal(await main(["next"], ctx), 0);
-  assert.match(ctx.lines.join("\n"), /1\/21, nybörjare, prompting.*\n.*dojo run prompt-extract-invoice/);
+  assert.match(ctx.lines.join("\n"), /1\/24, nybörjare, prompting.*\n.*dojo run prompt-extract-invoice/);
 
   await main(["run", "prompt-extract-invoice"], ctx);
   await cp(path.join(EXERCISES_DIR, "prompt/extract-invoice/refs/good"), path.join(ctx.workspaceDir, "prompt-extract-invoice"), { recursive: true, force: true });
@@ -106,5 +106,26 @@ test("next walks the path from beginner to elite", async () => {
 
   ctx.lines.length = 0;
   await main(["next"], ctx);
-  assert.match(ctx.lines.join("\n"), /2\/21, nybörjare, context.*\n.*dojo run context-project-commands/);
+  assert.match(ctx.lines.join("\n"), /2\/24, nybörjare, context.*\n.*dojo run context-project-commands/);
+});
+
+test("playbook lists the ticket routines and prints one", async () => {
+  const ctx = await testContext();
+  assert.equal(await main(["playbook"], ctx), 0);
+  const listing = ctx.lines.join("\n");
+  for (const name of ["feature", "bugfix", "research"]) assert.match(listing, new RegExp(`^${name}\\s+\\S`, "m"));
+
+  ctx.lines.length = 0;
+  assert.equal(await main(["playbook", "bugfix"], ctx), 0);
+  assert.match(ctx.lines.join("\n"), /^# Bugg-ärende[\s\S]*## Promptmall[\s\S]*```text/);
+
+  assert.equal(await main(["playbook", "deploy"], ctx), 1);
+});
+
+test("every ticket exercise points to a playbook, and the first run names it", async () => {
+  const tickets = ALL.filter((e) => e.playbook);
+  assert.deepEqual(tickets.map((e) => e.playbook).sort(), ["bugfix", "feature", "research"]);
+  const ctx = await testContext();
+  assert.equal(await main(["run", "ticket-feature"], ctx), 0);
+  assert.ok(ctx.lines.some((l) => l.includes("dojo playbook feature")));
 });

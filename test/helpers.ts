@@ -6,6 +6,7 @@ import { JsonResultStore } from "../src/store/json-store.ts";
 import { FakeClaude, FakeLlm } from "./fakes.ts";
 
 export const EXERCISES_DIR = path.resolve(import.meta.dirname, "../exercises");
+export const PLAYBOOKS_DIR = path.resolve(import.meta.dirname, "../playbooks");
 
 export async function tempDir(): Promise<string> {
   return mkdtemp(path.join(tmpdir(), "dojo-test-"));
@@ -20,6 +21,7 @@ export async function testContext(): Promise<CliContext & { lines: string[]; fak
     exercisesDir: EXERCISES_DIR,
     generatedDir: path.join(home, "generated"),
     workspaceDir: path.join(home, "workspace"),
+    playbooksDir: PLAYBOOKS_DIR,
     scheduleFile: path.join(home, "schedule.json"),
     store: new JsonResultStore(path.join(home, "results")),
     backend: "api",

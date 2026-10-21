@@ -8,6 +8,10 @@ export type Skill = (typeof SKILLS)[number];
 
 export const EXERCISE_TYPES = ["prompt", "env", "eval", "tools", "request"] as const;
 
+/** Working routines for the three kinds of ticket, in `playbooks/<name>.md`. */
+export const PLAYBOOKS = ["feature", "bugfix", "research"] as const;
+export type Playbook = (typeof PLAYBOOKS)[number];
+
 /** difficulty 1..3 */
 export const LEVELS = ["nybörjare", "avancerad", "elit"] as const;
 
@@ -94,6 +98,8 @@ export const FrontmatterSchema = z
         variants: z.array(z.object({ file: z.string(), shouldPass: z.boolean() })).min(2),
       })
       .optional(),
+    /** The ticket routine (`dojo playbook <name>`) this exercise trains. */
+    playbook: z.enum(PLAYBOOKS).optional(),
     /** Phase 2: where a generated exercise came from (e.g. a transcript path). */
     source: z.string().optional(),
   })

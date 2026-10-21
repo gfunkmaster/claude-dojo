@@ -1,0 +1,5 @@
+service: notifications
+replicas: 3
+restartPolicy: Always
+env:
+  MAIL_PROVIDER: postmark
