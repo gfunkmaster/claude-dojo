@@ -1,7 +1,15 @@
 import { levelName } from "../core/curriculum.ts";
 import { loadExercises, type Exercise } from "../core/exercise.ts";
 import type { RunResult } from "../core/result.ts";
-import { buildSchedule, dueEntries, relativeDays, toSchedule, upcomingEntries, type ScheduleEntry } from "../core/schedule.ts";
+import {
+  buildSchedule,
+  dueEntries,
+  relativeDays,
+  reviewCommandFor,
+  toSchedule,
+  upcomingEntries,
+  type ScheduleEntry,
+} from "../core/schedule.ts";
 import { canRun } from "../llm/backend.ts";
 import { writeSchedule } from "../store/schedule-file.ts";
 import { exerciseRoots, now, type CliContext, table } from "./context.ts";
@@ -38,11 +46,6 @@ export async function reviewState(ctx: CliContext, runs?: RunResult[]): Promise<
     upcoming: upcomingEntries(entries, now(ctx)).filter(runnable),
     skipped: due.filter((e) => !runnable(e)),
   };
-}
-
-/** How to start a review: a failed exercise continues where you left off, a passed one starts over. */
-export function reviewCommandFor(entry: ScheduleEntry): string {
-  return entry.lastPassed ? `dojo run ${entry.exerciseId} --fresh` : `dojo run ${entry.exerciseId}`;
 }
 
 export async function reviewCommand(ctx: CliContext): Promise<number> {

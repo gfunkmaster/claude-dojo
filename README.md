@@ -122,6 +122,19 @@ Generated exercises are scheduled like the bundled ones. If you delete one, its 
 
 The schedule is computed from `results/` every time: the same runs always give the same schedule, and there is no state to lose. Deleting a result file changes the schedule; nothing else does.
 
+## Web UI
+
+A local, read-only dashboard over the same files the CLI writes: score trend per skill, reviews that are due, the path by level with status and calibration, the next new exercise, and every run with its checks, judge feedback, tokens and turns.
+
+```sh
+npm install        # once; installs the web workspace too
+npm run web        # http://localhost:4321
+```
+
+It reads `results/` and `generated/` under `DOJO_HOME` (default: the repo) and the bundled `exercises/`, builds the review schedule from your runs the way `dojo review` does, and honours `DOJO_HOME`, `DOJO_EXERCISES` and `DOJO_BACKEND` like the CLI. Pages are rendered on the server on every request, so a `dojo run` in another terminal shows up on reload. It never writes, never calls a model and has no login, so keep it on localhost. You still run exercises with `dojo run`; each page shows the command to copy.
+
+The app lives in `web/` (Next.js App Router, an npm workspace). Everything it shows comes from `src/dashboard`, which builds on `src/core` and `src/store` and is tested with the rest of the suite. `npm run web:build` makes a production build; `npm run start --workspace web` serves it.
+
 ## How grading works
 
 1. **Runner.** One per exercise type:
@@ -326,4 +339,4 @@ Project rules for agents and humans are in [AGENTS.md](AGENTS.md).
 
 - Phase 2: done, see [Personal exercises from your sessions](#personal-exercises-from-your-sessions).
 - Phase 3: done, see [Spaced repetition](#spaced-repetition).
-- Phase 4: a Next.js web UI that imports `src/core`, `src/runners`, `src/judge` and `src/store` directly.
+- Phase 4: done, see [Web UI](#web-ui). Running exercises from the UI is a possible next step.

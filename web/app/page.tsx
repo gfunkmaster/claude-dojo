@@ -7,7 +7,6 @@ export const dynamic = "force-dynamic";
 export default async function Overview() {
   const d = await loadDashboard(source());
   const skipped = d.exercises.filter((e) => e.needsApi).length;
-  const titles = new Map(d.exercises.map((e) => [e.id, e.title]));
   return (
     <>
       <h1>Overview</h1>
@@ -28,7 +27,7 @@ export default async function Overview() {
         </div>
       </div>
 
-      <h2>Next</h2>
+      <h2>Next new exercise</h2>
       <div className="card hero">
         {d.next ? (
           <div>
@@ -49,26 +48,24 @@ export default async function Overview() {
         <p className="muted">{skipped} tools/request exercises are skipped: they need API credits (DOJO_BACKEND=api).</p>
       )}
 
-      {d.schedule && (
+      {d.due.length > 0 && (
         <>
           <h2>Due for review</h2>
-          {d.due.length === 0 ? (
-            <p className="muted">Nothing is due. Run <code>dojo review</code> later.</p>
-          ) : (
-            <div className="card">
-              <ul className="plain">
-                {d.due.map((e) => (
-                  <li key={e.exerciseId}>
-                    <a href={`/exercises/${e.exerciseId}`}>{titles.get(e.exerciseId) ?? e.exerciseId}</a>{" "}
-                    <span className="muted">
-                      due {formatDate(e.dueAt)}
-                      {e.lastScore !== null && ` · last ${e.lastScore}`}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+          <p className="muted"><code>dojo next</code> starts with these before new exercises.</p>
+          <div className="card">
+            <ul className="plain">
+              {d.due.map(({ entry, title, command }) => (
+                <li key={entry.exerciseId}>
+                  <a href={`/exercises/${entry.exerciseId}`}>{title}</a>{" "}
+                  <span className="muted">
+                    due {formatDate(entry.dueAt)} · last {entry.lastScore}
+                    {entry.missed.length > 0 && ` · missed ${entry.missed.join(", ")}`}
+                  </span>{" "}
+                  <code>{command}</code>
+                </li>
+              ))}
+            </ul>
+          </div>
         </>
       )}
 

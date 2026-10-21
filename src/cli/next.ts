@@ -1,9 +1,9 @@
 import { curriculumOrder, levelName, nextExercise } from "../core/curriculum.ts";
 import { loadExercises } from "../core/exercise.ts";
-import { relativeDays } from "../core/schedule.ts";
+import { relativeDays, reviewCommandFor } from "../core/schedule.ts";
 import { canRun } from "../llm/backend.ts";
 import { exerciseRoots, now, type CliContext } from "./context.ts";
-import { reviewCommandFor, reviewState } from "./review.ts";
+import { reviewState } from "./review.ts";
 
 export async function nextCommand(ctx: CliContext): Promise<number> {
   const { exercises } = await loadExercises(exerciseRoots(ctx));

@@ -1,9 +1,9 @@
-import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { z } from "zod";
 import { bestScores, curriculumOrder, levelName, nextExercise } from "../core/curriculum.ts";
 import { loadExercises, SKILLS, type Exercise, type Skill } from "../core/exercise.ts";
+import { mostMissed } from "../core/progress.ts";
 import type { RunResult } from "../core/result.ts";
+import { buildSchedule, dueEntries, reviewCommandFor, type ScheduleEntry } from "../core/schedule.ts";
 import { PASS_SCORE } from "../core/scoring.ts";
 import { canRun, resolveBackend, type Backend } from "../llm/backend.ts";
 import { JsonResultStore, type ResultStore } from "../store/json-store.ts";
@@ -11,7 +11,7 @@ import { JsonResultStore, type ResultStore } from "../store/json-store.ts";
 /**
  * The read model behind the web UI: everything it shows, built from the same
  * files the CLI writes. Read-only, and tolerant of files that don't exist yet
- * (no runs, no generated exercises, no schedule).
+ * (no runs, no generated exercises).
  */
 
 export interface DashboardSource {
@@ -19,12 +19,10 @@ export interface DashboardSource {
   exercisesDir: string;
   generatedDir: string;
   store: ResultStore;
-  /** `<DOJO_HOME>/schedule.json`, written by `dojo review` (phase 3). */
-  scheduleFile: string;
   backend: Backend;
 }
 
-/** Same layout as the CLI: DOJO_HOME (default: the repo) holds results/, generated/ and schedule.json. */
+/** Same layout as the CLI: DOJO_HOME (default: the repo) holds results/ and generated/. */
 export function defaultSource(repoRoot: string, env: NodeJS.ProcessEnv = process.env): DashboardSource {
   const home = env.DOJO_HOME ?? repoRoot;
   let backend: Backend;
@@ -38,7 +36,6 @@ export function defaultSource(repoRoot: string, env: NodeJS.ProcessEnv = process
     exercisesDir: env.DOJO_EXERCISES ?? path.join(repoRoot, "exercises"),
     generatedDir: path.join(home, "generated"),
     store: new JsonResultStore(path.join(home, "results")),
-    scheduleFile: path.join(home, "schedule.json"),
     backend,
   };
 }
@@ -94,16 +91,11 @@ export interface RunRow {
   passed: boolean;
 }
 
-export interface ScheduleEntry {
-  exerciseId: string;
-  dueAt: string;
-  box: number | null;
-  lastScore: number | null;
-}
-
-export interface Schedule {
-  generatedAt: string | null;
-  entries: ScheduleEntry[];
+export interface DueReview {
+  entry: ScheduleEntry;
+  title: string;
+  /** What `dojo next` would tell you to run. */
+  command: string;
 }
 
 export interface Dashboard {
@@ -114,26 +106,16 @@ export interface Dashboard {
   /** The first exercise on the path you can run and haven't passed, as `dojo next` picks it. */
   next: ExerciseRow | null;
   recentRuns: RunRow[];
-  /** Exercises due for review now, most overdue first. Empty without a schedule. */
-  due: ScheduleEntry[];
-  schedule: Schedule | null;
+  /** Reviews due now that run on this backend, in the order `dojo review` lists them. `dojo next` starts here. */
+  due: DueReview[];
   totals: { runs: number; costUsd: number; passed: number; exercises: number };
-  /** Invalid exercises, unreadable schedule: shown, never thrown. */
+  /** Invalid exercises: shown, never thrown. */
   warnings: string[];
 }
 
 /** A run's id is its file name without `.json`, so links stay stable and readable. */
 export function runId(run: Pick<RunResult, "startedAt" | "exerciseId">): string {
   return `${run.startedAt.replace(/[:.]/g, "-")}_${run.exerciseId}`;
-}
-
-export function mostMissed(runs: RunResult[], n = 3): { id: string; count: number }[] {
-  const counts = new Map<string, number>();
-  for (const r of runs) for (const id of r.failedCriteria) counts.set(id, (counts.get(id) ?? 0) + 1);
-  return [...counts.entries()]
-    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-    .slice(0, n)
-    .map(([id, count]) => ({ id, count }));
 }
 
 function isInside(dir: string, root: string): boolean {
@@ -186,12 +168,12 @@ export async function loadDashboard(src: DashboardSource, now: Date = new Date()
   });
 
   const next = nextExercise(exercises.filter((e) => canRun(src.backend, e)), runs);
-  const warnings = [...errors];
-  const schedule = await readSchedule(src.scheduleFile, warnings);
-  const known = new Set(rows.map((r) => r.id));
-  const due = (schedule?.entries ?? [])
-    .filter((e) => known.has(e.exerciseId) && Date.parse(e.dueAt) <= now.getTime())
-    .sort((a, b) => (a.box ?? 0) - (b.box ?? 0) || Date.parse(a.dueAt) - Date.parse(b.dueAt));
+  // Built from the runs like `dojo review` does, so it is never stale. Deleted and API-only exercises drop out.
+  const byId = new Map(rows.map((r) => [r.id, r]));
+  const due = dueEntries(buildSchedule(runs), now).flatMap((entry) => {
+    const row = byId.get(entry.exerciseId);
+    return row && !row.needsApi ? [{ entry, title: row.title, command: reviewCommandFor(entry) }] : [];
+  });
 
   return {
     backend: src.backend,
@@ -211,14 +193,13 @@ export async function loadDashboard(src: DashboardSource, now: Date = new Date()
         passed: r.passed,
       })),
     due,
-    schedule,
     totals: {
       runs: runs.length,
       costUsd: runs.reduce((s, r) => s + r.costUsd, 0),
       passed: rows.filter((r) => r.state === "passed").length,
       exercises: rows.length,
     },
-    warnings,
+    warnings: errors,
   };
 }
 
@@ -269,49 +250,4 @@ export async function loadRun(src: DashboardSource, id: string): Promise<RunDeta
     title: exercises.find((e) => e.id === run.exerciseId)?.title ?? run.exerciseId,
     totalTokens: t.input + t.output + t.cacheRead + t.cacheWrite,
   };
-}
-
-// Phase 3 owns the schedule's full schema. This reads only the fields the UI
-// shows and drops entries it can't read, so a newer schedule can't break it.
-const ScheduleFileSchema = z.object({
-  generatedAt: z.string().optional(),
-  entries: z.array(z.unknown()),
-});
-const ScheduleEntrySchema = z.object({
-  exerciseId: z.string(),
-  dueAt: z.iso.datetime({ offset: true }),
-  box: z.number().optional(),
-  lastScore: z.number().nullable().optional(),
-});
-
-async function readSchedule(file: string, warnings: string[]): Promise<Schedule | null> {
-  let raw: string;
-  try {
-    raw = await readFile(file, "utf8");
-  } catch {
-    return null;
-  }
-  let parsed;
-  try {
-    parsed = ScheduleFileSchema.safeParse(JSON.parse(raw));
-  } catch {
-    parsed = null;
-  }
-  if (!parsed?.success) {
-    warnings.push(`${file}: not a schedule this version can read`);
-    return null;
-  }
-  const entries: ScheduleEntry[] = [];
-  for (const e of parsed.data.entries) {
-    const entry = ScheduleEntrySchema.safeParse(e);
-    if (entry.success) {
-      entries.push({
-        exerciseId: entry.data.exerciseId,
-        dueAt: entry.data.dueAt,
-        box: entry.data.box ?? null,
-        lastScore: entry.data.lastScore ?? null,
-      });
-    }
-  }
-  return { generatedAt: parsed.data.generatedAt ?? null, entries };
 }
