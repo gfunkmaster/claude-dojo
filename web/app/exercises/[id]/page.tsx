@@ -21,6 +21,11 @@ export default async function ExercisePage({ params }: { params: Promise<{ id: s
         <code className="cmd">dojo run {exercise.id}</code>
         {row.needsApi && <span className="muted"> needs API credits (DOJO_BACKEND=api)</span>}
       </p>
+      {exercise.playbook && (
+        <p>
+          Routine and prompt template: <code className="cmd">dojo playbook {exercise.playbook}</code>
+        </p>
+      )}
       {exercise.source && <p className="muted">Generated from: {exercise.source}</p>}
 
       <h2>Runs</h2>

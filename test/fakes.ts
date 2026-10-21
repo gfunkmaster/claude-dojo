@@ -408,7 +408,10 @@ export class FakeClaude implements ClaudeCli {
     this.runs.push(req);
     const sb = new Sandbox(req);
     const p = req.prompt;
-    if (p.includes("GET /health")) health(sb);
+    if (p.startsWith("/feature ")) feature(sb);
+    else if (p.startsWith("/bugfix ")) bugfix(sb);
+    else if (p.startsWith("/research ")) research(sb);
+    else if (p.includes("GET /health")) health(sb);
     else if (p.includes("rm -rf")) sb.write("CLEANUP.md", sb.bash("rm -rf build tmp").ran ? "Deleted build/ and tmp/.\n" : "rm -rf was blocked by a hook.\n");
     else if (p.includes("build/old.log")) {
       sb.bash("rm build/old.log");
@@ -592,6 +595,93 @@ function discount(sb: Sandbox): void {
   sb.write("src/cart.js", `${base}\n\nexport function applyDiscount(total, percent) {\n  const discounted = total - (total * percent) / 100;\n  return Math.max(0, Math.round(discounted * 100) / 100);\n}\n`);
   sb.bash("npm test");
   sb.stop(true);
+}
+
+// --- ticket exercises: a slash command that holds the user's routine ---
+
+const CANCEL = `  cancel(id, reason) {
+    if (typeof reason !== "string" || reason.trim().length < 3) throw new ValidationError("reason must be at least 3 characters");
+    const order = this.get(id);
+    if (order.status !== "pending" && order.status !== "paid") throw new OrderStateError(\`order \${id} is \${order.status}\`);
+    order.status = "cancelled";
+    order.cancelledAt = this.clock();
+    order.cancelReason = reason;
+    return order;
+  }
+`;
+
+const CANCEL_TEST = `import assert from "node:assert/strict";\nimport { test } from "node:test";\nimport { OrderStateError } from "../src/common/errors.js";\nimport { OrdersService } from "../src/orders/orders.service.js";\n\ntest("cancel a pending order", () => {\n  const orders = new OrdersService();\n  const { id } = orders.create({ customerId: "c1", items: [{ sku: "mug", qty: 1 }] });\n  assert.equal(orders.cancel(id, "Ångrade sig").status, "cancelled");\n  assert.throws(() => orders.cancel(id, "Igen"), OrderStateError);\n});\n`;
+
+/** Implements DOJO-142 either way; only a routine that asks for it writes the plan first. */
+function feature(sb: Sandbox): void {
+  const planned = /PLAN\.md/.test(sb.file(".claude/commands/feature.md"));
+  sb.read("tickets/DOJO-142.md");
+  if (planned) {
+    sb.read("AGENTS.md");
+    sb.read("src/orders/orders.service.js");
+    sb.write("PLAN.md", "# Plan: DOJO-142\n\n## Klart när\n- [x] Ett test per acceptanskriterium\n- [x] npm test och npm run lint gröna\n");
+  }
+  const service = "src/orders/orders.service.js";
+  const controller = "src/orders/orders.controller.js";
+  sb.write(service, sb.file(service).replace("  markShipped(id) {", `${CANCEL}\n  markShipped(id) {`));
+  sb.write(
+    controller,
+    sb.file(controller).replace("  ];", `    { method: "POST", path: "/orders/:id/cancel", handler: ({ params, body }) => ({ status: 200, body: orders.cancel(params.id, body?.reason) }) },\n  ];`),
+  );
+  sb.write("test/orders.cancel.test.js", CANCEL_TEST);
+  sb.bash("npm test");
+  sb.bash("npm run lint");
+}
+
+const LAST_DAY_TEST = `import assert from "node:assert/strict";\nimport { test } from "node:test";\nimport { ReportsService } from "../src/reports/reports.service.js";\n\ntest("the last day of the range is counted", () => {\n  const reports = new ReportsService({ list: () => [{ createdAt: new Date("2026-10-07T12:00:00Z"), totalOre: 1 }] });\n  assert.deepEqual(reports.ordersPerDay("2026-10-01", "2026-10-07").at(-1), { date: "2026-10-07", count: 1 });\n});\n`;
+
+/** Fixes DOJO-217 either way; only a routine that asks for it writes a failing test and the cause first. */
+function bugfix(sb: Sandbox): void {
+  const disciplined = /BUGFIX\.md/.test(sb.file(".claude/commands/bugfix.md"));
+  const service = "src/reports/reports.service.js";
+  sb.read("tickets/DOJO-217.md");
+  if (disciplined) {
+    sb.write("test/reports.last-day.test.js", LAST_DAY_TEST);
+    sb.bash("npm test");
+    sb.read(service);
+    sb.write("BUGFIX.md", `# DOJO-217\n\n**Grundorsak:** ${service}:32 jämför createdAt < end, där end är midnatt i början av sista dagen.\n**Avfärdat:** cachen.\n`);
+  }
+  sb.write(service, sb.file(service).replace("order.createdAt < end", "order.createdAt < new Date(end.getTime() + DAY_MS)"));
+  sb.bash("npm test");
+}
+
+const RESEARCH_REPORT = `# DOJO-305
+
+## Fråga
+Vilka tjänster hanterar payment.succeeded idempotent?
+
+## Fynd
+| Tjänst | Idempotent | Källa |
+| --- | --- | --- |
+| checkout | ja | services/checkout/src/webhooks.js:10 |
+| billing | nej | services/billing/src/webhooks.js:7 |
+| notifications | delvis | services/notifications/src/webhooks.js:4 |
+
+## Slutsats
+ADR 0007 stämmer inte med koden. Inför ProcessedEvent i billing och notifications.
+
+## Osäkerheter
+Hur ofta leverantören skickar om.
+`;
+
+/** Answers DOJO-305; only a routine with subagents and the report format gets the format and the fan-out. */
+function research(sb: Sandbox): void {
+  const command = sb.file(".claude/commands/research.md");
+  sb.read("tickets/DOJO-305.md");
+  if (!/subagent/i.test(command) || !/## Fynd/.test(command)) {
+    for (const s of ["checkout", "billing", "notifications"]) sb.read(`services/${s}/src/webhooks.js`);
+    sb.write("RESEARCH.md", "# Research\n\nBilling and notifications may send duplicates. Add idempotency everywhere.\n");
+    return;
+  }
+  for (const s of ["checkout", "billing", "notifications"]) {
+    sb.tool("Agent", { subagent_type: "Explore", description: `research ${s}`, prompt: `Undersök services/${s}/` });
+  }
+  sb.write("RESEARCH.md", RESEARCH_REPORT);
 }
 
 function capitalize(s: string): string {

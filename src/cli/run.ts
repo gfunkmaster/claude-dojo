@@ -69,6 +69,7 @@ export async function runCommand(ctx: CliContext, id: string, opts: RunOptions =
     ctx.out(`# ${exercise.title}\n\n${exercise.body}\n`);
     ctx.out(`Your workspace: ${solutionDir}`);
     ctx.out(`Edit ${exercise.solution} there, then run \`dojo run ${exercise.id}\` again to be graded.`);
+    if (exercise.playbook) ctx.out(`The routine behind it, with a prompt template: \`dojo playbook ${exercise.playbook}\``);
     return 0;
   }
 

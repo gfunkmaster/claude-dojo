@@ -3,6 +3,7 @@ import { analyzeCommand } from "./analyze.ts";
 import { defaultContext, type CliContext } from "./context.ts";
 import { listCommand } from "./list.ts";
 import { nextCommand } from "./next.ts";
+import { playbookCommand } from "./playbook.ts";
 import { reviewCommand } from "./review.ts";
 import { runCommand } from "./run.ts";
 import { statsCommand } from "./stats.ts";
@@ -15,6 +16,7 @@ const USAGE = `Usage:
   dojo run <id> --calibrate    Grade the reference answers to check the judge
   dojo run <id> --keep         Keep the env sandbox on disk for debugging
   dojo run <id> --fresh        Move your old solution aside and start over from the starter
+  dojo playbook [name]         Working routine and prompt template for a ticket: feature, bugfix, research
   dojo stats [id]              Per skill: mastery, trend, due reviews and cost; or one exercise's history
   dojo analyze                 Find patterns in your Claude Code sessions (local, no model calls)
     --days <n>                 Sessions from the last n days (default 30, 0 for all)
@@ -59,6 +61,8 @@ export async function main(argv: string[], ctx: CliContext = defaultContext()): 
       return reviewCommand(ctx);
     case "stats":
       return statsCommand(ctx, id);
+    case "playbook":
+      return playbookCommand(ctx, id);
     case "analyze": {
       const days = Number(values.days);
       const max = Number(values.max);

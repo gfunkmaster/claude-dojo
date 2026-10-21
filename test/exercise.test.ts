@@ -6,7 +6,7 @@ import { EXERCISES_DIR } from "./helpers.ts";
 test("all bundled exercises load without errors", async () => {
   const { exercises, errors } = await loadExercises(EXERCISES_DIR);
   assert.deepEqual(errors, []);
-  assert.equal(exercises.length, 21);
+  assert.equal(exercises.length, 24);
 });
 
 const valid = `---
