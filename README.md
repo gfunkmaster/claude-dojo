@@ -7,7 +7,7 @@ The loop: pick an exercise, solve it in your workspace, and Dojo runs and grades
 ## Requirements
 
 - Node 22.18 or later. TypeScript runs directly through Node's type stripping, so there is no build step.
-- [Claude Code](https://code.claude.com) installed and signed in, so `claude -p` works. With a Claude subscription that is all you need for 16 of the 21 exercises (see [Backends](#backends)).
+- [Claude Code](https://code.claude.com) installed and signed in, so `claude -p` works. With a Claude subscription that is all you need for 19 of the 24 exercises (see [Backends](#backends)).
 - Optional: `ANTHROPIC_API_KEY` for the 5 `tools` and `request` exercises, which send raw Messages API requests.
 
 ```sh
@@ -31,6 +31,7 @@ dojo run <id> --keep           # env exercises: keep the sandbox for debugging
 dojo run <id> --fresh          # move your old solution aside and start over from the starter
 dojo stats                     # per skill: mastery, trend, due reviews, cost, most missed criteria
 dojo stats <id>                # history for one exercise
+dojo playbook [name]           # routine and prompt template for a ticket: feature, bugfix, research
 dojo analyze                   # patterns in your own Claude Code sessions (local only)
 dojo analyze --generate        # draft personal exercises from them with your claude -p
 ```
@@ -58,7 +59,7 @@ On `claude-cli`:
 
 ## The path
 
-21 exercises: every skill at three levels. `dojo next` takes you through them in this order, and an exercise counts as passed at 70 or more.
+24 exercises: every skill at three levels, plus three built on real tickets (see [Ticket track](#ticket-track)). `dojo next` takes you through them in this order, and an exercise counts as passed at 70 or more.
 
 | Skill | Nybörjare | Avancerad | Elit |
 | --- | --- | --- | --- |
@@ -69,6 +70,27 @@ On `claude-cli`:
 | env | `env-permissions`: deny rules that protect secrets | `env-hook-block-rm`: a PreToolUse hook that stops `rm -rf` | `env-stop-hook`: a Stop hook that waits for green tests |
 | api | `api-pick-model`: the cheapest model and settings that work | `api-prompt-caching`: caching that actually hits | `api-structured-output`: guaranteed JSON with a schema |
 | evals | `evals-first-eval`: a first eval that catches a broken prompt | `evals-eval-discriminates`: an eval that tells good from broken | `evals-llm-judge`: an LLM judge that catches made-up claims |
+
+## Ticket track
+
+The path trains one skill at a time. Real work arrives as a ticket: a new feature, a bug, or a research question. The ticket track turns each kind into a routine you can reuse on your own Jira tickets with Claude Code.
+
+```sh
+dojo playbook                  # the three routines
+dojo playbook bugfix           # one routine, with a prompt template to paste into Claude Code
+```
+
+The playbooks are in [`playbooks/`](playbooks) (in Swedish). Each has the routine, a paste-ready prompt template, how to save it as a slash command in your own project, and the usual mistakes.
+
+Each routine has an exercise. You write the routine as a slash command (`.claude/commands/<type>.md`, taking the ticket as `$ARGUMENTS`), and Dojo runs it with `claude -p "/<type> tickets/<ticket>.md"` on a realistic ticket in a small sandbox repo. They are `env` exercises, so they run on a subscription.
+
+| Ticket | Exercise | Skill, level | Checks that the routine was followed |
+| --- | --- | --- | --- |
+| feature | `ticket-feature`: cancel an order (DOJO-142) | context, avancerad | `PLAN.md` with a "Klart när" section is the first file written; the acceptance criteria pass; new tests; test and lint green |
+| bugfix | `ticket-bugfix`: the last day of a report is missing (DOJO-217) | evals, avancerad | a test and `BUGFIX.md` with the root cause are written before `src/` is touched; the new test fails on the old code; the bug is fixed; no existing test removed |
+| research | `ticket-research`: are payment webhooks idempotent? (DOJO-305) | agents, elit | `RESEARCH.md` with question, findings and conclusion apart; the right verdict and a `file:line` source per service; the outdated ADR is noticed; no code changed; subagents used |
+
+The judge grades the command itself: context before code, a plan and a definition of done for features; reproduce, root cause and a regression test for bugs; a bounded question, subagents for breadth and sources kept apart from conclusions for research. An exercise's `playbook` field links it to its routine; `dojo run` and the web UI show it.
 
 ## Personal exercises from your sessions
 
@@ -273,6 +295,7 @@ references:                     # at least one good and one bad
   - { label: good, dir: refs/good, expect: [75, 100] }
   - { label: bad, dir: refs/bad, expect: [0, 50] }
 weights: { checks: 0.5, judge: 0.5 }   # optional
+playbook: bugfix                        # optional: the ticket routine it trains (feature | bugfix | research)
 ---
 
 The task, in markdown.

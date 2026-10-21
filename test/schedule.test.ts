@@ -138,7 +138,7 @@ test("review, next and stats follow the schedule", async () => {
   assert.equal(await main(["run", id], ctx), 0);
   ctx.lines.length = 0;
   await main(["next"], ctx);
-  assert.match(ctx.lines.join("\n"), /2\/21, nybörjare, context/);
+  assert.match(ctx.lines.join("\n"), /2\/24, nybörjare, context/);
 
   ctx.lines.length = 0;
   await main(["stats"], ctx);

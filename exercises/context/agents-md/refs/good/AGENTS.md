@@ -16,3 +16,6 @@ Plain Node HTTP service, no dependencies. Node's built-in test runner.
 - No `console.log` in `src/`.
 - File names in `src/` and `test/` are kebab-case.
 - Every file in `src/routes/` except `index.js` needs a matching test file.
+
+## Changelog
+Every new route gets a line under `## Unreleased` at the top of `CHANGELOG.md`, right below `# Changelog`: `- Add GET /path`. Create the heading if it is missing. Lint does not check this, so don't skip it.
