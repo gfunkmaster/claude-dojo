@@ -36,7 +36,14 @@ export class JsonResultStore implements ResultStore {
     }
     const runs: RunResult[] = [];
     for (const name of names.filter((n) => n.endsWith(".json")).sort()) {
-      const parsed = RunResultSchema.safeParse(JSON.parse(await readFile(path.join(this.root, name), "utf8")));
+      let json: unknown;
+      try {
+        json = JSON.parse(await readFile(path.join(this.root, name), "utf8"));
+      } catch {
+        // A truncated or hand-edited file is skipped like one with the wrong schema.
+        continue;
+      }
+      const parsed = RunResultSchema.safeParse(json);
       if (parsed.success && (!exerciseId || parsed.data.exerciseId === exerciseId)) runs.push(parsed.data);
     }
     return runs;

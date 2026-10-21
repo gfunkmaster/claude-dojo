@@ -316,7 +316,8 @@ eval:
 ```sh
 npm test           # node:test with a fake model and a fake claude, on both backends
 npm run lint
-npm run typecheck
+npm run typecheck  # the CLI and the web UI
+npm run web:build  # what CI runs to check the UI compiles
 ```
 
 Project rules for agents and humans are in [AGENTS.md](AGENTS.md).

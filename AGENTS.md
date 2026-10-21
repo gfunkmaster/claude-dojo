@@ -6,12 +6,13 @@ Claude Dojo: a CLI that grades exercises about using Claude well. TypeScript, st
 - `npm test`: all tests (`node:test`). No API key needed; tests use fakes from `test/fakes.ts`.
 - `npm run lint`, `npm run typecheck`: must pass before a commit.
 - `npm run dojo -- <command>`: run the CLI from the repo.
+- `npm run web`: the local web UI (Next.js, `web/`). `npm run web:build` must pass too; CI runs it.
 
 ## Rules
 - Node >= 22.18. Import local files with the `.ts` extension. Only erasable TypeScript syntax (no enums, no parameter properties, no namespaces).
 - Every call to the Anthropic API goes through `LlmClient` (`src/llm/client.ts`), every `claude -p` through `ClaudeCli` (`src/llm/claude-cli.ts`). Never call the SDK or spawn `claude` anywhere else; tests depend on swapping these.
 - `LlmClient` has two backends, picked by `DOJO_BACKEND` (`src/llm/backend.ts`): `AnthropicLlmClient` (API) and `ClaudeCliLlmClient` (subscription, via `ClaudeCli.ask`). `tools` and `request` exercises only run on the API.
-- `src/core`, `src/runners`, `src/judge`, `src/store` and `src/analyze` must not import from `src/cli`. A future web UI will import them directly.
+- `src/core`, `src/runners`, `src/judge`, `src/store` and `src/analyze` must not import from `src/cli`. The web UI (`web/`) imports them directly, through `src/dashboard`. It is read-only: it never writes results or calls a model.
 - Results are append-only JSON validated by `src/core/result.ts`. Changing that schema means bumping `schemaVersion`.
 - The review schedule (`src/core/schedule.ts`) is derived from the results by a pure function. Don't give it state of its own; `schedule.json` is only a snapshot for other readers. The on-disk shapes are documented in the README ("Data on disk"), which the web UI relies on: keep them in sync.
 - No new dependencies without asking.
