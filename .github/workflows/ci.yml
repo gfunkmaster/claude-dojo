@@ -22,3 +22,7 @@ jobs:
       - run: npm run typecheck
       # Tests use a fake model and a fake `claude`, so no API key is needed.
       - run: npm test
+      # The web UI compiles src/ through Next.js, so a build catches imports it can't bundle.
+      - run: npm run web:build
+        env:
+          NEXT_TELEMETRY_DISABLED: 1

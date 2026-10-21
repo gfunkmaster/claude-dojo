@@ -93,6 +93,19 @@ Generated exercises go to `generated/<id>/` (ids start with `my-`, and `source` 
 
 The transcript format is internal to Claude Code and changes between versions. The parser reads a few stable fields and skips lines it doesn't understand, so a new version can make it miss things but should not make it crash.
 
+## Web UI
+
+A local, read-only dashboard over the same files the CLI writes: score trend per skill, the path by level with status and calibration, the next exercise, what is due for review, and every run with its checks, judge feedback, tokens and turns.
+
+```sh
+npm install        # once; installs the web workspace too
+npm run web        # http://localhost:4321
+```
+
+It reads `results/`, `generated/` and `schedule.json` under `DOJO_HOME` (default: the repo) and the bundled `exercises/`, and honours `DOJO_HOME`, `DOJO_EXERCISES` and `DOJO_BACKEND` like the CLI. Pages are rendered on the server on every request, so a `dojo run` in another terminal shows up on reload. It never writes, never calls a model and has no login, so keep it on localhost. You still run exercises with `dojo run`; each page shows the command to copy.
+
+The app lives in `web/` (Next.js App Router, an npm workspace). Everything it shows comes from `src/dashboard`, which builds on `src/core` and `src/store` and is tested with the rest of the suite. `npm run web:build` makes a production build; `npm run start --workspace web` serves it.
+
 ## How grading works
 
 1. **Runner.** One per exercise type:
@@ -207,7 +220,8 @@ eval:
 ```sh
 npm test           # node:test with a fake model and a fake claude, on both backends
 npm run lint
-npm run typecheck
+npm run typecheck  # the CLI and the web UI
+npm run web:build  # what CI runs to check the UI compiles
 ```
 
 Project rules for agents and humans are in [AGENTS.md](AGENTS.md).
@@ -216,4 +230,4 @@ Project rules for agents and humans are in [AGENTS.md](AGENTS.md).
 
 - Phase 2: done, see [Personal exercises from your sessions](#personal-exercises-from-your-sessions).
 - Phase 3: spaced repetition per skill, built on `failedCriteria` in the saved results.
-- Phase 4: a Next.js web UI that imports `src/core`, `src/runners`, `src/judge` and `src/store` directly.
+- Phase 4: done, see [Web UI](#web-ui). Running exercises from the UI is a possible next step.

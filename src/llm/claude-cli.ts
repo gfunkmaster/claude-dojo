@@ -126,7 +126,7 @@ export class RealClaudeCli implements ClaudeCli {
     }
   }
 
-  private spawn(args: string[], cwd: string, stdin?: string, extraEnv: NodeJS.ProcessEnv = {}): Promise<ClaudeAskResult> {
+  private spawn(args: string[], cwd: string, stdin?: string, extraEnv: Record<string, string> = {}): Promise<ClaudeAskResult> {
     const env = { ...process.env, ...extraEnv };
     if (this.subscription) delete env.ANTHROPIC_API_KEY;
     return new Promise((resolve, reject) => {
@@ -150,7 +150,7 @@ export class RealClaudeCli implements ClaudeCli {
 }
 
 /** Keeps your CLAUDE.md files and auto memory out of a prompt exercise or the judge. */
-const ASK_ENV: NodeJS.ProcessEnv = { CLAUDE_CODE_DISABLE_CLAUDE_MDS: "1", CLAUDE_CODE_DISABLE_AUTO_MEMORY: "1" };
+const ASK_ENV: Record<string, string> = { CLAUDE_CODE_DISABLE_CLAUDE_MDS: "1", CLAUDE_CODE_DISABLE_AUTO_MEMORY: "1" };
 
 /** Arguments for a single tool-free turn; the prompt itself goes in on stdin. */
 export function askArgs(req: ClaudeAskRequest, systemFile: string): string[] {
