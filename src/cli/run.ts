@@ -5,7 +5,7 @@ import { gradeSolution } from "../core/grade.ts";
 import type { RunResult } from "../core/result.ts";
 import { calibrate } from "../judge/calibrate.ts";
 import { canRun } from "../llm/backend.ts";
-import type { CliContext } from "./context.ts";
+import { exerciseRoots, type CliContext } from "./context.ts";
 
 export interface RunOptions {
   calibrate?: boolean;
@@ -22,7 +22,7 @@ async function exists(p: string): Promise<boolean> {
 }
 
 export async function findExercise(ctx: CliContext, id: string): Promise<Exercise | undefined> {
-  const { exercises } = await loadExercises(ctx.exercisesDir);
+  const { exercises } = await loadExercises(exerciseRoots(ctx));
   return exercises.find((e) => e.id === id);
 }
 

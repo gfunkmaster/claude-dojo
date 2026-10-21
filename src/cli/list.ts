@@ -1,9 +1,9 @@
 import { bestScores, curriculumOrder, levelName } from "../core/curriculum.ts";
 import { loadExercises } from "../core/exercise.ts";
-import { type CliContext, table } from "./context.ts";
+import { exerciseRoots, type CliContext, table } from "./context.ts";
 
 export async function listCommand(ctx: CliContext): Promise<number> {
-  const { exercises, errors } = await loadExercises(ctx.exercisesDir);
+  const { exercises, errors } = await loadExercises(exerciseRoots(ctx));
   const best = bestScores(await ctx.store.listRuns());
   const rows = [["#", "ID", "LEVEL", "SKILL", "TYPE", "BEST", "CALIBRATED"]];
   let n = 0;

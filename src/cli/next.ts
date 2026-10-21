@@ -1,10 +1,10 @@
 import { curriculumOrder, levelName, nextExercise } from "../core/curriculum.ts";
 import { loadExercises } from "../core/exercise.ts";
 import { canRun } from "../llm/backend.ts";
-import type { CliContext } from "./context.ts";
+import { exerciseRoots, type CliContext } from "./context.ts";
 
 export async function nextCommand(ctx: CliContext): Promise<number> {
-  const { exercises } = await loadExercises(ctx.exercisesDir);
+  const { exercises } = await loadExercises(exerciseRoots(ctx));
   const runs = await ctx.store.listRuns();
   // On a subscription, skip the exercises that need API credits instead of stopping at them.
   const runnable = exercises.filter((e) => canRun(ctx.backend, e));

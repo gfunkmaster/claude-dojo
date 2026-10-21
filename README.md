@@ -29,6 +29,8 @@ dojo run <id> --calibrate      # grade the reference answers to check the exerci
 dojo run <id> --keep           # env exercises: keep the sandbox for debugging
 dojo stats                     # per skill: runs, last and best score, cost, most missed criteria
 dojo stats <id>                # history for one exercise
+dojo analyze                   # patterns in your own Claude Code sessions (local only)
+dojo analyze --generate        # draft personal exercises from them with your claude -p
 ```
 
 ## Backends
@@ -50,7 +52,7 @@ On `claude-cli`:
 - Tokens come from Claude Code's JSON output. The cost Dojo prints and saves is the API list price for those tokens, for comparison; your subscription covers it, within its usage limits.
 - `tools` and `request` exercises need the API, since they are about the request itself (tool definitions, `cache_control`, `max_tokens`, effort). `dojo run` says so, and `dojo next` skips them.
 
-`DOJO_HOME` moves `workspace/` and `results/` somewhere else. `DOJO_JUDGE_MODEL` changes the judge model (default `claude-opus-5-5`).
+`DOJO_HOME` moves `workspace/`, `results/` and `generated/` somewhere else. `DOJO_JUDGE_MODEL` changes the judge model and `DOJO_ANALYZE_MODEL` the model `dojo analyze --generate` uses (both default to `claude-opus-5-5`).
 
 ## The path
 
@@ -65,6 +67,31 @@ On `claude-cli`:
 | env | `env-permissions`: deny rules that protect secrets | `env-hook-block-rm`: a PreToolUse hook that stops `rm -rf` | `env-stop-hook`: a Stop hook that waits for green tests |
 | api | `api-pick-model`: the cheapest model and settings that work | `api-prompt-caching`: caching that actually hits | `api-structured-output`: guaranteed JSON with a schema |
 | evals | `evals-first-eval`: a first eval that catches a broken prompt | `evals-eval-discriminates`: an eval that tells good from broken | `evals-llm-judge`: an LLM judge that catches made-up claims |
+
+## Personal exercises from your sessions
+
+`dojo analyze` reads the transcripts Claude Code keeps in `~/.claude/projects/**/*.jsonl` (or `$CLAUDE_CONFIG_DIR/projects`) and looks for the moments a session went wrong:
+
+| Pattern | Found when | Trains |
+| --- | --- | --- |
+| `correction` | a prompt opens with "nej", "fel", "no", "wrong", or says "jag sa", "I said", "du glömde", "doesn't work", … right after Claude answered | prompting, context |
+| `repeat` | a prompt is mostly the same words as an earlier one in the session | context, prompting |
+| `interrupt` | you pressed Esc or rejected a tool call | env, prompting |
+| `retry-loop` | 3 or more tool calls failed in a row | env, tools |
+| `rework` | one file was edited 6 or more times in a session | evals, prompting |
+| `context-bloat` | the context passed 150k tokens, was compacted, or one tool result was over 50k characters | context, agents |
+
+```sh
+dojo analyze                          # sessions changed in the last 30 days
+dojo analyze --days 0 --project shop  # all time, only projects whose folder name contains "shop"
+dojo analyze --generate --max 3       # also draft up to 3 exercises
+```
+
+Without `--generate` nothing leaves your machine: the heuristics are plain code, and the report shows short redacted excerpts. With `--generate`, Dojo sends the redacted excerpts of the findings (never whole transcripts or tool output, at most about 24 000 characters) to your local `claude -p`, whatever `DOJO_BACKEND` says. One call summarises the patterns and picks the skill and level that would have prevented each one. Then one call per pattern drafts an exercise in the normal format, with real exercises as format examples. Each draft is checked before it is written: safe paths only, the frontmatter must validate, every file it points to must exist, and the type must be `prompt`, `env` or `eval`, so it runs on a subscription. An invalid draft is sent back once with the error.
+
+Generated exercises go to `generated/<id>/` (ids start with `my-`, and `source` says which pattern they came from). Secrets, emails and home folders are redacted in every file again before it is written. `generated/` is in `.gitignore`, because it is built from your own work; keep it out of git. `dojo list`, `dojo next` and `dojo run` treat generated exercises like the bundled ones. They are drafts, so run `dojo run <id> --calibrate` first and fix or delete any that don't calibrate.
+
+The transcript format is internal to Claude Code and changes between versions. The parser reads a few stable fields and skips lines it doesn't understand, so a new version can make it miss things but should not make it crash.
 
 ## How grading works
 
@@ -187,6 +214,6 @@ Project rules for agents and humans are in [AGENTS.md](AGENTS.md).
 
 ## Roadmap
 
-- Phase 2: analyse `~/.claude/projects/**/*.jsonl` transcripts and generate personal exercises into `exercises/generated/` (the `source` field records where each one came from).
+- Phase 2: done, see [Personal exercises from your sessions](#personal-exercises-from-your-sessions).
 - Phase 3: spaced repetition per skill, built on `failedCriteria` in the saved results.
 - Phase 4: a Next.js web UI that imports `src/core`, `src/runners`, `src/judge` and `src/store` directly.
