@@ -20,6 +20,7 @@ export async function testContext(): Promise<CliContext & { lines: string[]; fak
     exercisesDir: EXERCISES_DIR,
     workspaceDir: path.join(home, "workspace"),
     store: new JsonResultStore(path.join(home, "results")),
+    backend: "api",
     llm: () => fakeLlm,
     claude: () => fakeClaude,
     out: (line) => lines.push(line),

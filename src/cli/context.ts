@@ -1,5 +1,7 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { resolveBackend, type Backend } from "../llm/backend.ts";
+import { ClaudeCliLlmClient } from "../llm/claude-cli-client.ts";
 import { RealClaudeCli, type ClaudeCli } from "../llm/claude-cli.ts";
 import { AnthropicLlmClient, type LlmClient } from "../llm/client.ts";
 import { JsonResultStore, type ResultStore } from "../store/json-store.ts";
@@ -10,6 +12,7 @@ export interface CliContext {
   exercisesDir: string;
   workspaceDir: string;
   store: ResultStore;
+  backend: Backend;
   /** Created lazily so `list` and `stats` work without an API key. */
   llm: () => LlmClient;
   claude: () => ClaudeCli;
@@ -18,14 +21,17 @@ export interface CliContext {
 
 export function defaultContext(): CliContext {
   const home = process.env.DOJO_HOME ?? REPO_ROOT;
+  const backend = resolveBackend();
   let llm: LlmClient | undefined;
   let claude: ClaudeCli | undefined;
+  const getClaude = () => (claude ??= new RealClaudeCli({ subscription: backend === "claude-cli" }));
   return {
     exercisesDir: process.env.DOJO_EXERCISES ?? path.join(REPO_ROOT, "exercises"),
     workspaceDir: path.join(home, "workspace"),
     store: new JsonResultStore(path.join(home, "results")),
-    llm: () => (llm ??= new AnthropicLlmClient()),
-    claude: () => (claude ??= new RealClaudeCli()),
+    backend,
+    llm: () => (llm ??= backend === "api" ? new AnthropicLlmClient() : new ClaudeCliLlmClient(getClaude())),
+    claude: getClaude,
     out: (line) => console.log(line),
   };
 }

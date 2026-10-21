@@ -10,6 +10,7 @@ Claude Dojo: a CLI that grades exercises about using Claude well. TypeScript, st
 ## Rules
 - Node >= 22.18. Import local files with the `.ts` extension. Only erasable TypeScript syntax (no enums, no parameter properties, no namespaces).
 - Every call to the Anthropic API goes through `LlmClient` (`src/llm/client.ts`), every `claude -p` through `ClaudeCli` (`src/llm/claude-cli.ts`). Never call the SDK or spawn `claude` anywhere else; tests depend on swapping these.
+- `LlmClient` has two backends, picked by `DOJO_BACKEND` (`src/llm/backend.ts`): `AnthropicLlmClient` (API) and `ClaudeCliLlmClient` (subscription, via `ClaudeCli.ask`). `tools` and `request` exercises only run on the API.
 - `src/core`, `src/runners`, `src/judge` and `src/store` must not import from `src/cli`. A future web UI will import them directly.
 - Results are append-only JSON validated by `src/core/result.ts`. Changing that schema means bumping `schemaVersion`.
 - No new dependencies without asking.

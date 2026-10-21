@@ -7,8 +7,8 @@ The loop: pick an exercise, solve it in your workspace, and Dojo runs and grades
 ## Requirements
 
 - Node 22.18 or later. TypeScript runs directly through Node's type stripping, so there is no build step.
-- `ANTHROPIC_API_KEY` (or an `ant auth login` profile) for prompt and eval exercises and for the judge.
-- For env exercises: [Claude Code](https://code.claude.com) installed and signed in, so `claude -p` works.
+- [Claude Code](https://code.claude.com) installed and signed in, so `claude -p` works. With a Claude subscription that is all you need for 16 of the 21 exercises (see [Backends](#backends)).
+- Optional: `ANTHROPIC_API_KEY` for the 5 `tools` and `request` exercises, which send raw Messages API requests.
 
 ```sh
 npm install
@@ -30,6 +30,25 @@ dojo run <id> --keep           # env exercises: keep the sandbox for debugging
 dojo stats                     # per skill: runs, last and best score, cost, most missed criteria
 dojo stats <id>                # history for one exercise
 ```
+
+## Backends
+
+Prompt and eval exercises and the judge need model calls. `DOJO_BACKEND` picks where they go:
+
+| `DOJO_BACKEND` | Model calls go through | Billing |
+| --- | --- | --- |
+| `claude-cli` | `claude -p`, signed in with your Claude subscription | your subscription |
+| `api` | the Anthropic API with `ANTHROPIC_API_KEY` | API credits, per token |
+
+Unset, Dojo uses `api` when `ANTHROPIC_API_KEY` is set and `claude-cli` otherwise. If you sign in to the API with an `ant auth login` profile instead of a key, set `DOJO_BACKEND=api`.
+
+On `claude-cli`:
+
+- Each call is one turn with no tools, run in an empty temp folder, with your system prompt in place of Claude Code's (`--system-prompt-file`), `--tools ""`, no MCP servers, no slash commands, and your CLAUDE.md files and auto memory turned off. Claude Code still adds a little environment context (about 1 500 tokens), so a prompt can behave slightly differently than on the API. Calibrate on the backend you train on.
+- The judge uses `--json-schema` and `--effort medium`, and its verdict is still validated with zod and retried once.
+- `ANTHROPIC_API_KEY` is removed from the environment of every `claude` Dojo starts, env exercises included, so nothing is billed to the API by accident.
+- Tokens come from Claude Code's JSON output. The cost Dojo prints and saves is the API list price for those tokens, for comparison; your subscription covers it, within its usage limits.
+- `tools` and `request` exercises need the API, since they are about the request itself (tool definitions, `cache_control`, `max_tokens`, effort). `dojo run` says so, and `dojo next` skips them.
 
 `DOJO_HOME` moves `workspace/` and `results/` somewhere else. `DOJO_JUDGE_MODEL` changes the judge model (default `claude-opus-5-5`).
 
@@ -153,13 +172,13 @@ eval:
 
 1. Write `refs/good` and `refs/bad` before you tune the rubric. A rubric that can't separate them is not finished.
 2. Give each criterion one observable thing to judge. Weight the ones that matter most.
-3. Run `dojo run <id> --calibrate` against the real API and adjust `expect` ranges or criteria until it passes.
+3. Run `dojo run <id> --calibrate` against a real model (either backend) and adjust `expect` ranges or criteria until it passes.
 4. Add the exercise to `test/e2e.test.ts` and teach `test/fakes.ts` how to respond, so CI covers it without an API key.
 
 ## Development
 
 ```sh
-npm test           # node:test with a fake model and a fake claude
+npm test           # node:test with a fake model and a fake claude, on both backends
 npm run lint
 npm run typecheck
 ```
