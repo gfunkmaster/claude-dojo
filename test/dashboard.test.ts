@@ -37,7 +37,6 @@ async function source(): Promise<DashboardSource & { home: string; store: JsonRe
     exercisesDir: EXERCISES_DIR,
     generatedDir: path.join(home, "generated"),
     store: new JsonResultStore(path.join(home, "results")),
-    scheduleFile: path.join(home, "schedule.json"),
     backend: "claude-cli",
   };
 }
@@ -56,7 +55,6 @@ test("a fresh home shows the whole path, nothing passed, and the first exercise 
   assert.ok(d.skills.every((s) => s.runs === 0 && s.trend.length === 0 && s.total >= 3));
   assert.ok(d.skills.every((s) => s.total === d.exercises.filter((e) => e.skill === s.skill).length));
   assert.deepEqual(d.recentRuns, []);
-  assert.equal(d.schedule, null);
   assert.deepEqual(d.due, []);
   assert.deepEqual(d.warnings, []);
 });
@@ -144,33 +142,24 @@ test("an exercise's detail lists its runs newest first", async () => {
   assert.equal(await loadExerciseDetail(src, "missing"), null);
 });
 
-test("the schedule shows what is due, and a missing or broken one is not an error", async () => {
+test("reviews come from the runs: failed ones first, deleted and API-only exercises left out", async () => {
   const src = await source();
-  const now = new Date("2026-10-21T12:00:00.000Z");
-  await writeFile(
-    src.scheduleFile,
-    JSON.stringify({
-      schemaVersion: 1,
-      generatedAt: "2026-10-21T00:00:00.000Z",
-      entries: [
-        { exerciseId: "prompting-few-shot-tone", box: 2, dueAt: "2026-10-20T00:00:00.000Z", lastScore: 55, extra: true },
-        { exerciseId: "prompt-extract-invoice", box: 1, dueAt: "2026-10-21T00:00:00.000Z", lastScore: 40 },
-        { exerciseId: "context-agents-md", box: 1, dueAt: "2026-10-30T00:00:00.000Z" },
-        { exerciseId: "deleted-exercise", box: 1, dueAt: "2026-10-01T00:00:00.000Z" },
-        { exerciseId: "no-due-date" },
-      ],
-    }),
-  );
-  const d = await loadDashboard(src, now);
-  assert.equal(d.schedule?.entries.length, 4);
-  // Lowest box first, then most overdue; future and unknown exercises are left out.
-  assert.deepEqual(d.due.map((e) => e.exerciseId), ["prompt-extract-invoice", "prompting-few-shot-tone"]);
-  assert.deepEqual(d.warnings, []);
+  await src.store.saveRun(run("prompt-extract-invoice", "2026-10-10T09:00:00.000Z", 40, ["no-invented-values"]));
+  await src.store.saveRun(run("prompting-few-shot-tone", "2026-10-10T09:00:00.000Z", 90));
+  await src.store.saveRun(run("deleted-exercise", "2026-10-10T09:00:00.000Z", 30));
+  await src.store.saveRun({ ...run("tools-describe-tools", "2026-10-10T09:00:00.000Z", 30), skill: "tools", type: "tools" });
+  // Passed today: not due yet.
+  await src.store.saveRun({ ...run("context-project-commands", "2026-10-21T09:00:00.000Z", 90), skill: "context" });
 
-  await writeFile(src.scheduleFile, "{ not json");
-  const broken = await loadDashboard(src, now);
-  assert.equal(broken.schedule, null);
-  assert.equal(broken.warnings.length, 1);
+  const d = await loadDashboard(src, new Date("2026-10-21T12:00:00.000Z"));
+  assert.deepEqual(d.due.map((r) => r.entry.exerciseId), ["prompt-extract-invoice", "prompting-few-shot-tone"]);
+  assert.equal(d.due[0]?.title, "Extrahera fakturadata");
+  assert.deepEqual(d.due[0]?.entry.missed, ["no-invented-values"]);
+  assert.equal(d.due[0]?.command, "dojo run prompt-extract-invoice");
+  assert.equal(d.due[1]?.command, "dojo run prompting-few-shot-tone --fresh");
+
+  const api = await loadDashboard({ ...src, backend: "api" }, new Date("2026-10-21T12:00:00.000Z"));
+  assert.ok(api.due.some((r) => r.entry.exerciseId === "tools-describe-tools"));
 });
 
 test("a truncated result file is skipped instead of breaking every page", async () => {
@@ -187,7 +176,6 @@ test("defaultSource follows DOJO_HOME, DOJO_EXERCISES and DOJO_BACKEND like the 
   const src = defaultSource("/repo", { DOJO_HOME: home, DOJO_EXERCISES: "/ex", DOJO_BACKEND: "api" });
   assert.equal(src.exercisesDir, "/ex");
   assert.equal(src.generatedDir, path.join(home, "generated"));
-  assert.equal(src.scheduleFile, path.join(home, "schedule.json"));
   assert.equal(src.backend, "api");
 
   const plain = defaultSource("/repo", {});
