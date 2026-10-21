@@ -1,0 +1,6 @@
+<source>
+Kvartalsrapport Q3: Dojo ökade intäkterna med 12 procent till 48 miljoner kronor. Antalet kunder steg till 3 100. Kostnaderna ökade med 8 procent, främst på grund av nyanställningar inom support. Bolaget räknar med fortsatt tillväxt under Q4.
+</source>
+<summary>
+Intäkterna ökade med 12 procent till 48 miljoner kronor, främst tack vare nyanställningarna inom support.
+</summary>
