@@ -10,6 +10,8 @@ const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..
 
 export interface CliContext {
   exercisesDir: string;
+  /** Your personal exercises from `dojo analyze --generate`. Never committed. */
+  generatedDir: string;
   workspaceDir: string;
   store: ResultStore;
   backend: Backend;
@@ -27,6 +29,7 @@ export function defaultContext(): CliContext {
   const getClaude = () => (claude ??= new RealClaudeCli({ subscription: backend === "claude-cli" }));
   return {
     exercisesDir: process.env.DOJO_EXERCISES ?? path.join(REPO_ROOT, "exercises"),
+    generatedDir: path.join(home, "generated"),
     workspaceDir: path.join(home, "workspace"),
     store: new JsonResultStore(path.join(home, "results")),
     backend,
@@ -34,6 +37,11 @@ export function defaultContext(): CliContext {
     claude: getClaude,
     out: (line) => console.log(line),
   };
+}
+
+/** The bundled path plus your generated exercises. */
+export function exerciseRoots(ctx: CliContext): string[] {
+  return [ctx.exercisesDir, ctx.generatedDir];
 }
 
 export function table(rows: string[][]): string {

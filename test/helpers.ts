@@ -18,6 +18,7 @@ export async function testContext(): Promise<CliContext & { lines: string[]; fak
   const fakeClaude = new FakeClaude();
   return {
     exercisesDir: EXERCISES_DIR,
+    generatedDir: path.join(home, "generated"),
     workspaceDir: path.join(home, "workspace"),
     store: new JsonResultStore(path.join(home, "results")),
     backend: "api",

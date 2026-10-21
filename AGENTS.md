@@ -11,9 +11,10 @@ Claude Dojo: a CLI that grades exercises about using Claude well. TypeScript, st
 - Node >= 22.18. Import local files with the `.ts` extension. Only erasable TypeScript syntax (no enums, no parameter properties, no namespaces).
 - Every call to the Anthropic API goes through `LlmClient` (`src/llm/client.ts`), every `claude -p` through `ClaudeCli` (`src/llm/claude-cli.ts`). Never call the SDK or spawn `claude` anywhere else; tests depend on swapping these.
 - `LlmClient` has two backends, picked by `DOJO_BACKEND` (`src/llm/backend.ts`): `AnthropicLlmClient` (API) and `ClaudeCliLlmClient` (subscription, via `ClaudeCli.ask`). `tools` and `request` exercises only run on the API.
-- `src/core`, `src/runners`, `src/judge` and `src/store` must not import from `src/cli`. A future web UI will import them directly.
+- `src/core`, `src/runners`, `src/judge`, `src/store` and `src/analyze` must not import from `src/cli`. A future web UI will import them directly.
 - Results are append-only JSON validated by `src/core/result.ts`. Changing that schema means bumping `schemaVersion`.
 - No new dependencies without asking.
+- Transcripts (`src/analyze`) are the user's private data. Only redacted excerpts from `detectPatterns` may leave the module, and only to `claude -p` through `ClaudeCli`. Never commit a real transcript or anything in `generated/`; tests use the synthetic fixtures in `test/fixtures/transcripts/`.
 
 ## Exercises
 - One folder per exercise with `exercise.md` (YAML frontmatter + task text), `starter/` and `refs/good` + `refs/bad`. Schema: `src/core/exercise.ts`.

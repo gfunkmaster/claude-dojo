@@ -1,6 +1,8 @@
 node_modules/
 workspace/
 results/
+# Personal exercises from `dojo analyze --generate`, built from your own transcripts.
+generated/
 .env
 # Exercise fixtures ship fake secrets on purpose.
 !exercises/**/fixture/.env

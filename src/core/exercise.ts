@@ -138,9 +138,14 @@ export interface LoadResult {
   errors: string[];
 }
 
-/** Finds every `exercise.md` under `root`. Invalid exercises are reported, not thrown. */
-export async function loadExercises(root: string): Promise<LoadResult> {
-  const files = await findExerciseFiles(root);
+/**
+ * Finds every `exercise.md` under the given folders (the bundled path, and your
+ * generated exercises). A folder that doesn't exist is skipped. Invalid
+ * exercises are reported, not thrown.
+ */
+export async function loadExercises(roots: string | string[]): Promise<LoadResult> {
+  const files: string[] = [];
+  for (const root of [roots].flat()) if (await isDir(root)) files.push(...(await findExerciseFiles(root)));
   const exercises: Exercise[] = [];
   const errors: string[] = [];
   for (const file of files) {
@@ -171,6 +176,14 @@ async function findExerciseFiles(dir: string): Promise<string[]> {
     }
   }
   return found;
+}
+
+async function isDir(p: string): Promise<boolean> {
+  try {
+    return (await stat(p)).isDirectory();
+  } catch {
+    return false;
+  }
 }
 
 async function isFile(p: string): Promise<boolean> {
