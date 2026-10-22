@@ -407,3 +407,4 @@ Project rules for agents and humans are in [AGENTS.md](AGENTS.md).
 - Phase 2: done, see [Personal exercises from your sessions](#personal-exercises-from-your-sessions).
 - Phase 3: done, see [Spaced repetition](#spaced-repetition).
 - Phase 4: done, see [Web UI](#web-ui).
+- Next: the plan for making Dojo elite and usable in a company is in [docs/ROADMAP.md](docs/ROADMAP.md) (in Swedish).
